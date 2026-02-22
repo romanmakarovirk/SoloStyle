@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoloStyle - Полное руководство разработчика</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #1a1a1a;
+            background: #ffffff;
+            padding: 40px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #0066cc;
+        }
+
+        h2 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-top: 35px;
+            margin-bottom: 15px;
+            color: #444;
+        }
+
+        h4 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 25px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 14px;
+            color: #d63384;
+        }
+
+        pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 20px 0;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .keyword { color: #569cd6; }
+        .type { color: #4ec9b0; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .property { color: #9cdcfe; }
+        .function { color: #dcdcaa; }
+
+        ul, ol {
+            margin-left: 25px;
+            margin-bottom: 20px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .warning-box {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .success-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background: #f8f8f8;
+            font-weight: 600;
+        }
+
+        .cover {
+            text-align: center;
+            padding: 80px 0;
+            border-bottom: 2px solid #eee;
+            margin-bottom: 50px;
+        }
+
+        .cover h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .cover .subtitle {
+            font-size: 20px;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .cover .version {
+            font-size: 16px;
+            color: #999;
+        }
+
+        .toc {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            border-bottom: none;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .toc a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .file-structure {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 14px;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        @media print {
+            body {
+                padding: 20px;
+            }
+
+            pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+
+            .page-break {
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="cover">
+    <h1>SoloStyle</h1>
+    <p class="subtitle">Полное руководство разработчика</p>
+    <p class="subtitle">iOS 26 приложение для фрилансеров в сфере красоты</p>
+    <p class="version">Версия 1.0 | SwiftUI + SwiftData</p>
+</div>
+
+<div class="toc">
+    <h2>Содержание</h2>
+    <ul>
+        <li><a href="#chapter1">1. Введение и обзор проекта</a></li>
+        <li><a href="#chapter2">2. Архитектура приложения</a></li>
+        <li><a href="#chapter3">3. Модели данных (SwiftData)</a></li>
+        <li><a href="#chapter4">4. Дизайн-система</a></li>
+        <li><a href="#chapter5">5. Компоненты интерфейса</a></li>
+        <li><a href="#chapter6">6. Экраны приложения</a></li>
+        <li><a href="#chapter7">7. AI-интеграция</a></li>
+        <li><a href="#chapter8">8. Кэширование и оптимизация</a></li>
+        <li><a href="#chapter9">9. Валидация и безопасность</a></li>
+        <li><a href="#chapter10">10. Как создать такое приложение с нуля</a></li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2 id="chapter1">1. Введение и обзор проекта</h2>
+
+<h3>1.1 Что такое SoloStyle?</h3>
+<p>SoloStyle — это iOS-приложение для фрилансеров в сфере красоты (парикмахеры, визажисты, мастера маникюра и т.д.). Оно позволяет:</p>
+<ul>
+    <li>Управлять клиентской базой</li>
+    <li>Вести календарь записей</li>
+    <li>Отслеживать доходы</li>
+    <li>Создавать и редактировать услуги</li>
+    <li>Использовать AI-ассистента для бизнес-советов</li>
+</ul>
+
+<h3>1.2 Используемые технологии</h3>
+<table>
+    <tr>
+        <th>Технология</th>
+        <th>Назначение</th>
+        <th>Минимальная версия</th>
+    </tr>
+    <tr>
+        <td>SwiftUI</td>
+        <td>UI-фреймворк</td>
+        <td>iOS 26</td>
+    </tr>
+    <tr>
+        <td>SwiftData</td>
+        <td>Локальная база данных</td>
+        <td>iOS 17+</td>
+    </tr>
+    <tr>
+        <td>Liquid Glass</td>
+        <td>Стиль iOS 26 (.glassEffect)</td>
+        <td>iOS 26</td>
+    </tr>
+    <tr>
+        <td>Groq API</td>
+        <td>AI-ассистент</td>
+        <td>-</td>
+    </tr>
+</table>
+
+<h3>1.3 Структура файлов проекта</h3>
+<div class="file-structure">
+SoloStyle/<br>
+├── SoloStyleApp.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Точка входа<br>
+├── Models.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Модели данных<br>
+├── DesignSystem.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Цвета, шрифты, отступы<br>
+├── GlassComponents.swift &nbsp;&nbsp;&nbsp;&nbsp;// UI-компоненты<br>
+├── MainTabView.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Главная навигация<br>
+├── CalendarView.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Экран календаря<br>
+├── ClientsView.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Экран клиентов<br>
+├── ProfileView.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Профиль мастера<br>
+├── SettingsView.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Настройки<br>
+├── AIAssistantView.swift &nbsp;&nbsp;&nbsp;&nbsp;// AI-ассистент<br>
+└── OnboardingView.swift &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Первый запуск
+</div>
+
+<div class="page-break"></div>
+
+<h2 id="chapter2">2. Архитектура приложения</h2>
+
+<h3>2.1 Точка входа (App)</h3>
+<p>Файл <code>SoloStyleApp.swift</code> — это точка входа. Здесь создаётся контейнер данных и определяется, какой экран показать:</p>
+
+<pre><code><span class="keyword">import</span> SwiftUI
+<span class="keyword">import</span> SwiftData
+
+<span class="keyword">@main</span>
+<span class="keyword">struct</span> <span class="type">SoloStyleApp</span>: <span class="type">App</span> {
+    <span class="keyword">@AppStorage</span>(<span class="string">"hasCompletedOnboarding"</span>) <span class="keyword">private var</span> hasCompletedOnboarding = <span class="keyword">false</span>
+
+    <span class="keyword">var</span> sharedModelContainer: <span class="type">ModelContainer</span> = {
+        <span class="keyword">let</span> schema = <span class="type">Schema</span>([
+            <span class="type">Master</span>.<span class="keyword">self</span>,
+            <span class="type">Client</span>.<span class="keyword">self</span>,
+            <span class="type">Service</span>.<span class="keyword">self</span>,
+            <span class="type">Appointment</span>.<span class="keyword">self</span>
+        ])
+        <span class="keyword">let</span> config = <span class="type">ModelConfiguration</span>(schema: schema, isStoredInMemoryOnly: <span class="keyword">false</span>)
+
+        <span class="keyword">do</span> {
+            <span class="keyword">return try</span> <span class="type">ModelContainer</span>(for: schema, configurations: [config])
+        } <span class="keyword">catch</span> {
+            <span class="comment">// Fallback на in-memory если ошибка</span>
+            <span class="keyword">let</span> memoryConfig = <span class="type">ModelConfiguration</span>(schema: schema, isStoredInMemoryOnly: <span class="keyword">true</span>)
+            <span class="keyword">return try!</span> <span class="type">ModelContainer</span>(for: schema, configurations: [memoryConfig])
+        }
+    }()
+
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">Scene</span> {
+        <span class="type">WindowGroup</span> {
+            <span class="keyword">if</span> hasCompletedOnboarding {
+                <span class="type">MainTabView</span>()
+            } <span class="keyword">else</span> {
+                <span class="type">OnboardingView</span>()
+            }
+        }
+        .<span class="function">modelContainer</span>(sharedModelContainer)
+    }
+}</code></pre>
+
+<div class="info-box">
+    <strong>Что здесь происходит:</strong>
+    <ul>
+        <li><code>@main</code> — указывает, что это точка входа приложения</li>
+        <li><code>@AppStorage</code> — сохраняет значение в UserDefaults</li>
+        <li><code>ModelContainer</code> — контейнер для SwiftData (аналог Core Data)</li>
+        <li><code>Schema</code> — список моделей, которые будут храниться в базе</li>
+    </ul>
+</div>
+
+<h3>2.2 Навигация (Tab Bar)</h3>
+<p>Приложение использует кастомный Tab Bar с 5 вкладками:</p>
+
+<pre><code><span class="keyword">enum</span> <span class="type">Tab</span>: <span class="type">String</span>, <span class="type">CaseIterable</span>, <span class="type">Identifiable</span> {
+    <span class="keyword">case</span> calendar, clients, ai, profile, settings
+
+    <span class="keyword">var</span> id: <span class="type">String</span> { rawValue }
+
+    <span class="keyword">var</span> icon: <span class="type">String</span> {
+        <span class="keyword">switch self</span> {
+        <span class="keyword">case</span> .calendar: <span class="keyword">return</span> <span class="string">"calendar"</span>
+        <span class="keyword">case</span> .clients: <span class="keyword">return</span> <span class="string">"person.2"</span>
+        <span class="keyword">case</span> .ai: <span class="keyword">return</span> <span class="string">"sparkles"</span>
+        <span class="keyword">case</span> .profile: <span class="keyword">return</span> <span class="string">"person.crop.circle"</span>
+        <span class="keyword">case</span> .settings: <span class="keyword">return</span> <span class="string">"gearshape"</span>
+        }
+    }
+
+    <span class="keyword">var</span> title: <span class="type">String</span> {
+        <span class="keyword">switch self</span> {
+        <span class="keyword">case</span> .calendar: <span class="keyword">return</span> <span class="string">"Calendar"</span>
+        <span class="keyword">case</span> .clients: <span class="keyword">return</span> <span class="string">"Clients"</span>
+        <span class="keyword">case</span> .ai: <span class="keyword">return</span> <span class="string">"AI"</span>
+        <span class="keyword">case</span> .profile: <span class="keyword">return</span> <span class="string">"Profile"</span>
+        <span class="keyword">case</span> .settings: <span class="keyword">return</span> <span class="string">"Settings"</span>
+        }
+    }
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2 id="chapter3">3. Модели данных (SwiftData)</h2>
+
+<h3>3.1 Что такое SwiftData?</h3>
+<p>SwiftData — это современный фреймворк Apple для хранения данных. Это замена Core Data с более простым синтаксисом. Данные хранятся в SQLite базе на устройстве.</p>
+
+<h3>3.2 Модель Master (Мастер)</h3>
+<p>Хранит информацию о владельце приложения:</p>
+
+<pre><code><span class="keyword">@Model</span>
+<span class="keyword">final class</span> <span class="type">Master</span> {
+    <span class="keyword">var</span> id: <span class="type">UUID</span>
+    <span class="keyword">var</span> name: <span class="type">String</span>
+    <span class="keyword">var</span> businessName: <span class="type">String</span>?
+    <span class="keyword">var</span> avatarData: <span class="type">Data</span>?
+    <span class="keyword">var</span> publicSlug: <span class="type">String</span>
+    <span class="keyword">var</span> createdAt: <span class="type">Date</span>
+
+    <span class="keyword">init</span>(name: <span class="type">String</span>, businessName: <span class="type">String</span>? = <span class="keyword">nil</span>) {
+        <span class="keyword">self</span>.id = <span class="type">UUID</span>()
+        <span class="keyword">self</span>.name = name
+        <span class="keyword">self</span>.businessName = businessName
+        <span class="keyword">self</span>.publicSlug = <span class="type">UUID</span>().uuidString.prefix(<span class="string">8</span>).lowercased()
+        <span class="keyword">self</span>.createdAt = <span class="type">Date</span>()
+    }
+}</code></pre>
+
+<div class="info-box">
+    <strong>@Model</strong> — макрос SwiftData, который превращает класс в модель данных. Все свойства автоматически сохраняются в базу.
+</div>
+
+<h3>3.3 Модель Client (Клиент)</h3>
+
+<pre><code><span class="keyword">@Model</span>
+<span class="keyword">final class</span> <span class="type">Client</span> {
+    <span class="keyword">var</span> id: <span class="type">UUID</span>
+    <span class="keyword">var</span> name: <span class="type">String</span>
+    <span class="keyword">var</span> phone: <span class="type">String</span>?
+    <span class="keyword">var</span> email: <span class="type">String</span>?
+    <span class="keyword">var</span> notes: <span class="type">String</span>?
+    <span class="keyword">var</span> createdAt: <span class="type">Date</span>
+
+    <span class="comment">// Связь с записями (один ко многим)</span>
+    <span class="keyword">@Relationship</span>(deleteRule: .cascade, inverse: \<span class="type">Appointment</span>.client)
+    <span class="keyword">var</span> appointments: [<span class="type">Appointment</span>]
+
+    <span class="keyword">init</span>(name: <span class="type">String</span>, phone: <span class="type">String</span>? = <span class="keyword">nil</span>, email: <span class="type">String</span>? = <span class="keyword">nil</span>) {
+        <span class="keyword">self</span>.id = <span class="type">UUID</span>()
+        <span class="keyword">self</span>.name = name
+        <span class="keyword">self</span>.phone = phone
+        <span class="keyword">self</span>.email = email
+        <span class="keyword">self</span>.createdAt = <span class="type">Date</span>()
+        <span class="keyword">self</span>.appointments = []
+    }
+}</code></pre>
+
+<div class="warning-box">
+    <strong>@Relationship</strong> — определяет связь между моделями. <code>deleteRule: .cascade</code> означает, что при удалении клиента удалятся все его записи.
+</div>
+
+<h3>3.4 Модель Service (Услуга)</h3>
+
+<pre><code><span class="keyword">@Model</span>
+<span class="keyword">final class</span> <span class="type">Service</span> {
+    <span class="keyword">var</span> id: <span class="type">UUID</span>
+    <span class="keyword">var</span> name: <span class="type">String</span>
+    <span class="keyword">var</span> price: <span class="type">Decimal</span>
+    <span class="keyword">var</span> duration: <span class="type">Int</span>  <span class="comment">// в минутах</span>
+    <span class="keyword">var</span> isActive: <span class="type">Bool</span>
+    <span class="keyword">var</span> createdAt: <span class="type">Date</span>
+
+    <span class="comment">// Вычисляемые свойства для отображения</span>
+    <span class="keyword">var</span> formattedPrice: <span class="type">String</span> {
+        <span class="keyword">return</span> <span class="string">"$\(price)"</span>
+    }
+
+    <span class="keyword">var</span> formattedDuration: <span class="type">String</span> {
+        <span class="keyword">if</span> duration >= <span class="string">60</span> {
+            <span class="keyword">let</span> hours = duration / <span class="string">60</span>
+            <span class="keyword">let</span> mins = duration % <span class="string">60</span>
+            <span class="keyword">return</span> mins > <span class="string">0</span> ? <span class="string">"\(hours)h \(mins)m"</span> : <span class="string">"\(hours)h"</span>
+        }
+        <span class="keyword">return</span> <span class="string">"\(duration) min"</span>
+    }
+}</code></pre>
+
+<h3>3.5 Модель Appointment (Запись)</h3>
+
+<pre><code><span class="keyword">@Model</span>
+<span class="keyword">final class</span> <span class="type">Appointment</span> {
+    <span class="keyword">var</span> id: <span class="type">UUID</span>
+    <span class="keyword">var</span> date: <span class="type">Date</span>
+    <span class="keyword">var</span> endDate: <span class="type">Date</span>
+    <span class="keyword">var</span> status: <span class="type">AppointmentStatus</span>
+    <span class="keyword">var</span> notes: <span class="type">String</span>?
+    <span class="keyword">var</span> createdAt: <span class="type">Date</span>
+
+    <span class="comment">// Связи</span>
+    <span class="keyword">var</span> client: <span class="type">Client</span>?
+    <span class="keyword">var</span> service: <span class="type">Service</span>?
+}
+
+<span class="keyword">enum</span> <span class="type">AppointmentStatus</span>: <span class="type">String</span>, <span class="type">Codable</span> {
+    <span class="keyword">case</span> scheduled
+    <span class="keyword">case</span> completed
+    <span class="keyword">case</span> cancelled
+
+    <span class="keyword">var</span> color: <span class="type">Color</span> {
+        <span class="keyword">switch self</span> {
+        <span class="keyword">case</span> .scheduled: <span class="keyword">return</span> .blue
+        <span class="keyword">case</span> .completed: <span class="keyword">return</span> .green
+        <span class="keyword">case</span> .cancelled: <span class="keyword">return</span> .red
+        }
+    }
+}</code></pre>
+
+<h3>3.6 Индексы для оптимизации</h3>
+<p>Для ускорения запросов добавляются индексы:</p>
+
+<pre><code><span class="keyword">@Model</span>
+<span class="keyword">final class</span> <span class="type">Client</span> {
+    <span class="comment">// ... свойства ...</span>
+}
+
+<span class="comment">// Индекс по имени для быстрого поиска</span>
+<span class="keyword">extension</span> <span class="type">Client</span> {
+    <span class="keyword">static var</span> indexes: [[<span class="type">IndexColumn</span><<span class="type">Client</span>>]] {
+        [[<span class="type">IndexColumn</span>(\.<span class="property">name</span>)]]
+    }
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2 id="chapter4">4. Дизайн-система</h2>
+
+<h3>4.1 Структура Design</h3>
+<p>Все константы дизайна собраны в одном месте:</p>
+
+<pre><code><span class="keyword">enum</span> <span class="type">Design</span> {
+    <span class="comment">// Цвета</span>
+    <span class="keyword">enum</span> <span class="type">Colors</span> {
+        <span class="keyword">static let</span> backgroundPrimary = <span class="type">Color</span>(<span class="string">"BackgroundPrimary"</span>)
+        <span class="keyword">static let</span> backgroundSecondary = <span class="type">Color</span>(<span class="string">"BackgroundSecondary"</span>)
+        <span class="keyword">static let</span> textPrimary = <span class="type">Color</span>(<span class="string">"TextPrimary"</span>)
+        <span class="keyword">static let</span> textSecondary = <span class="type">Color</span>(<span class="string">"TextSecondary"</span>)
+        <span class="keyword">static let</span> textTertiary = <span class="type">Color</span>(<span class="string">"TextTertiary"</span>)
+        <span class="keyword">static let</span> accentPrimary = <span class="type">Color</span>.blue
+        <span class="keyword">static let</span> accentSuccess = <span class="type">Color</span>.green
+        <span class="keyword">static let</span> accentError = <span class="type">Color</span>.red
+        <span class="keyword">static let</span> glassTint = <span class="type">Color</span>.white.opacity(<span class="string">0.1</span>)
+    }
+
+    <span class="comment">// Отступы</span>
+    <span class="keyword">enum</span> <span class="type">Spacing</span> {
+        <span class="keyword">static let</span> xxs: <span class="type">CGFloat</span> = <span class="string">4</span>
+        <span class="keyword">static let</span> xs: <span class="type">CGFloat</span> = <span class="string">8</span>
+        <span class="keyword">static let</span> s: <span class="type">CGFloat</span> = <span class="string">12</span>
+        <span class="keyword">static let</span> m: <span class="type">CGFloat</span> = <span class="string">16</span>
+        <span class="keyword">static let</span> l: <span class="type">CGFloat</span> = <span class="string">24</span>
+        <span class="keyword">static let</span> xl: <span class="type">CGFloat</span> = <span class="string">32</span>
+        <span class="keyword">static let</span> xxl: <span class="type">CGFloat</span> = <span class="string">48</span>
+    }
+
+    <span class="comment">// Радиусы скругления</span>
+    <span class="keyword">enum</span> <span class="type">Radius</span> {
+        <span class="keyword">static let</span> s: <span class="type">CGFloat</span> = <span class="string">8</span>
+        <span class="keyword">static let</span> m: <span class="type">CGFloat</span> = <span class="string">12</span>
+        <span class="keyword">static let</span> l: <span class="type">CGFloat</span> = <span class="string">16</span>
+        <span class="keyword">static let</span> xl: <span class="type">CGFloat</span> = <span class="string">24</span>
+    }
+
+    <span class="comment">// Типографика</span>
+    <span class="keyword">enum</span> <span class="type">Typography</span> {
+        <span class="keyword">static let</span> largeTitle = <span class="type">Font</span>.system(size: <span class="string">34</span>, weight: .bold, design: .rounded)
+        <span class="keyword">static let</span> title2 = <span class="type">Font</span>.system(size: <span class="string">22</span>, weight: .bold, design: .rounded)
+        <span class="keyword">static let</span> title3 = <span class="type">Font</span>.system(size: <span class="string">20</span>, weight: .semibold)
+        <span class="keyword">static let</span> headline = <span class="type">Font</span>.system(size: <span class="string">17</span>, weight: .semibold)
+        <span class="keyword">static let</span> body = <span class="type">Font</span>.system(size: <span class="string">17</span>)
+        <span class="keyword">static let</span> subheadline = <span class="type">Font</span>.system(size: <span class="string">15</span>)
+        <span class="keyword">static let</span> caption1 = <span class="type">Font</span>.system(size: <span class="string">12</span>)
+        <span class="keyword">static let</span> caption2 = <span class="type">Font</span>.system(size: <span class="string">11</span>)
+    }
+
+    <span class="comment">// Анимации</span>
+    <span class="keyword">enum</span> <span class="type">Animation</span> {
+        <span class="keyword">static let</span> quick = <span class="type">SwiftUI</span>.<span class="type">Animation</span>.easeOut(duration: <span class="string">0.2</span>)
+        <span class="keyword">static let</span> smooth = <span class="type">SwiftUI</span>.<span class="type">Animation</span>.spring(response: <span class="string">0.4</span>, dampingFraction: <span class="string">0.8</span>)
+    }
+}</code></pre>
+
+<h3>4.2 Зачем нужна дизайн-система?</h3>
+<ul>
+    <li><strong>Единообразие</strong> — все элементы выглядят одинаково</li>
+    <li><strong>Быстрые изменения</strong> — меняешь в одном месте, меняется везде</li>
+    <li><strong>Читаемость кода</strong> — <code>Design.Spacing.m</code> понятнее чем <code>16</code></li>
+    <li><strong>Темы</strong> — легко добавить тёмную тему</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2 id="chapter5">5. Компоненты интерфейса</h2>
+
+<h3>5.1 GlassCard — базовая карточка</h3>
+<p>Карточка со стеклянным эффектом (Liquid Glass iOS 26):</p>
+
+<pre><code><span class="keyword">struct</span> <span class="type">GlassCard</span><<span class="type">Content</span>: <span class="type">View</span>>: <span class="type">View</span> {
+    <span class="keyword">let</span> tint: <span class="type">Color</span>
+    <span class="keyword">let</span> padding: <span class="type">CGFloat</span>
+    <span class="keyword">@ViewBuilder let</span> content: () -> <span class="type">Content</span>
+
+    <span class="keyword">init</span>(
+        tint: <span class="type">Color</span> = <span class="type">Design</span>.<span class="type">Colors</span>.glassTint,
+        padding: <span class="type">CGFloat</span> = <span class="type">Design</span>.<span class="type">Spacing</span>.m,
+        <span class="keyword">@ViewBuilder</span> content: <span class="keyword">@escaping</span> () -> <span class="type">Content</span>
+    ) {
+        <span class="keyword">self</span>.tint = tint
+        <span class="keyword">self</span>.padding = padding
+        <span class="keyword">self</span>.content = content
+    }
+
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">View</span> {
+        content()
+            .padding(padding)
+            .background(
+                <span class="type">RoundedRectangle</span>(cornerRadius: <span class="type">Design</span>.<span class="type">Radius</span>.l)
+                    .<span class="function">fill</span>(<span class="type">Design</span>.<span class="type">Colors</span>.backgroundSecondary.opacity(<span class="string">0.5</span>))
+            )
+            .<span class="function">glassEffect</span>(.regular.tint(tint), in: .<span class="function">rect</span>(cornerRadius: <span class="type">Design</span>.<span class="type">Radius</span>.l))
+    }
+}</code></pre>
+
+<div class="info-box">
+    <strong>.glassEffect()</strong> — модификатор iOS 26, который добавляет эффект матового стекла с размытием фона.
+</div>
+
+<h3>5.2 GlassButton — кнопка</h3>
+
+<pre><code><span class="keyword">struct</span> <span class="type">GlassButton</span>: <span class="type">View</span> {
+    <span class="keyword">let</span> title: <span class="type">String</span>
+    <span class="keyword">let</span> icon: <span class="type">String</span>?
+    <span class="keyword">let</span> style: <span class="type">ButtonStyle</span>
+    <span class="keyword">let</span> isLoading: <span class="type">Bool</span>
+    <span class="keyword">let</span> isFullWidth: <span class="type">Bool</span>
+    <span class="keyword">let</span> action: () -> <span class="type">Void</span>
+
+    <span class="keyword">enum</span> <span class="type">ButtonStyle</span> {
+        <span class="keyword">case</span> primary, secondary
+    }
+
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">View</span> {
+        <span class="type">Button</span>(action: action) {
+            <span class="type">HStack</span>(spacing: <span class="type">Design</span>.<span class="type">Spacing</span>.xs) {
+                <span class="keyword">if</span> isLoading {
+                    <span class="type">ProgressView</span>()
+                        .tint(.white)
+                } <span class="keyword">else</span> {
+                    <span class="keyword">if let</span> icon {
+                        <span class="type">Image</span>(systemName: icon)
+                    }
+                    <span class="type">Text</span>(title)
+                }
+            }
+            .font(<span class="type">Design</span>.<span class="type">Typography</span>.headline)
+            .foregroundStyle(style == .primary ? .white : <span class="type">Design</span>.<span class="type">Colors</span>.accentPrimary)
+            .padding(.horizontal, <span class="type">Design</span>.<span class="type">Spacing</span>.l)
+            .padding(.vertical, <span class="type">Design</span>.<span class="type">Spacing</span>.s)
+            .frame(maxWidth: isFullWidth ? .infinity : <span class="keyword">nil</span>)
+            .background(
+                style == .primary
+                    ? <span class="type">AnyShapeStyle</span>(<span class="type">Design</span>.<span class="type">Colors</span>.accentPrimary)
+                    : <span class="type">AnyShapeStyle</span>(<span class="type">Design</span>.<span class="type">Colors</span>.backgroundSecondary)
+            , in: <span class="type">Capsule</span>())
+        }
+    }
+}</code></pre>
+
+<h3>5.3 FormField — поле ввода</h3>
+
+<pre><code><span class="keyword">struct</span> <span class="type">FormField</span>: <span class="type">View</span> {
+    <span class="keyword">let</span> title: <span class="type">String</span>
+    <span class="keyword">let</span> placeholder: <span class="type">String</span>
+    <span class="keyword">@Binding var</span> text: <span class="type">String</span>
+    <span class="keyword">let</span> icon: <span class="type">String</span>
+    <span class="keyword">var</span> keyboardType: <span class="type">UIKeyboardType</span> = .default
+
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">View</span> {
+        <span class="type">VStack</span>(alignment: .leading, spacing: <span class="type">Design</span>.<span class="type">Spacing</span>.xs) {
+            <span class="type">Text</span>(title)
+                .font(<span class="type">Design</span>.<span class="type">Typography</span>.caption1)
+                .foregroundStyle(<span class="type">Design</span>.<span class="type">Colors</span>.textSecondary)
+
+            <span class="type">HStack</span>(spacing: <span class="type">Design</span>.<span class="type">Spacing</span>.s) {
+                <span class="type">Image</span>(systemName: icon)
+                    .foregroundStyle(<span class="type">Design</span>.<span class="type">Colors</span>.accentPrimary)
+                    .frame(width: <span class="string">24</span>)
+
+                <span class="type">TextField</span>(placeholder, text: $text)
+                    .keyboardType(keyboardType)
+            }
+            .padding(<span class="type">Design</span>.<span class="type">Spacing</span>.m)
+            .background(
+                <span class="type">RoundedRectangle</span>(cornerRadius: <span class="type">Design</span>.<span class="type">Radius</span>.m)
+                    .<span class="function">fill</span>(<span class="type">Design</span>.<span class="type">Colors</span>.backgroundSecondary)
+            )
+        }
+    }
+}</code></pre>
+
+<h3>5.4 HapticManager — тактильная обратная связь</h3>
+
+<pre><code><span class="keyword">enum</span> <span class="type">HapticManager</span> {
+    <span class="keyword">static func</span> <span class="function">impact</span>(_ style: <span class="type">UIImpactFeedbackGenerator</span>.<span class="type">FeedbackStyle</span>) {
+        <span class="keyword">let</span> generator = <span class="type">UIImpactFeedbackGenerator</span>(style: style)
+        generator.<span class="function">impactOccurred</span>()
+    }
+
+    <span class="keyword">static func</span> <span class="function">notification</span>(_ type: <span class="type">UINotificationFeedbackGenerator</span>.<span class="type">FeedbackType</span>) {
+        <span class="keyword">let</span> generator = <span class="type">UINotificationFeedbackGenerator</span>()
+        generator.<span class="function">notificationOccurred</span>(type)
+    }
+
+    <span class="keyword">static func</span> <span class="function">selection</span>() {
+        <span class="keyword">let</span> generator = <span class="type">UISelectionFeedbackGenerator</span>()
+        generator.<span class="function">selectionChanged</span>()
+    }
+}</code></pre>
+
+<div class="success-box">
+    <strong>Применение:</strong><br>
+    <code>HapticManager.impact(.light)</code> — лёгкая вибрация при нажатии<br>
+    <code>HapticManager.notification(.success)</code> — вибрация успеха<br>
+    <code>HapticManager.selection()</code> — при выборе элемента
+</div>
+
+<div class="page-break"></div>
+
+<h2 id="chapter6">6. Экраны приложения</h2>
+
+<h3>6.1 CalendarView — Календарь</h3>
+<p>Главный экран с записями на выбранную дату:</p>
+
+<pre><code><span class="keyword">struct</span> <span class="type">CalendarView</span>: <span class="type">View</span> {
+    <span class="keyword">@Environment</span>(\.<span class="property">modelContext</span>) <span class="keyword">private var</span> modelContext
+    <span class="keyword">@Query private var</span> appointments: [<span class="type">Appointment</span>]
+
+    <span class="keyword">@State private var</span> selectedDate = <span class="type">Date</span>()
+    <span class="keyword">@State private var</span> showingAddAppointment = <span class="keyword">false</span>
+
+    <span class="comment">// Фильтрация записей по выбранной дате</span>
+    <span class="keyword">private var</span> todayAppointments: [<span class="type">Appointment</span>] {
+        appointments.<span class="function">filter</span> { appointment <span class="keyword">in</span>
+            <span class="type">Calendar</span>.current.<span class="function">isDate</span>(appointment.date, inSameDayAs: selectedDate)
+        }.<span class="function">sorted</span> { $0.date < $1.date }
+    }
+
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">View</span> {
+        <span class="type">NavigationStack</span> {
+            <span class="type">ZStack</span> {
+                <span class="type">Design</span>.<span class="type">Colors</span>.backgroundPrimary.<span class="function">ignoresSafeArea</span>()
+
+                <span class="type">VStack</span>(spacing: <span class="string">0</span>) {
+                    <span class="comment">// Полоска с датой</span>
+                    <span class="type">DatePicker</span>(<span class="string">"Date"</span>, selection: $selectedDate, displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+
+                    <span class="comment">// Список записей</span>
+                    <span class="type">ScrollView</span> {
+                        <span class="type">LazyVStack</span>(spacing: <span class="type">Design</span>.<span class="type">Spacing</span>.s) {
+                            <span class="type">ForEach</span>(todayAppointments) { appointment <span class="keyword">in</span>
+                                <span class="type">AppointmentCard</span>(appointment: appointment)
+                            }
+                        }
+                        .padding(<span class="type">Design</span>.<span class="type">Spacing</span>.m)
+                    }
+                }
+
+                <span class="comment">// FAB кнопка</span>
+                <span class="type">VStack</span> {
+                    <span class="type">Spacer</span>()
+                    <span class="type">HStack</span> {
+                        <span class="type">Spacer</span>()
+                        <span class="type">GlassFAB</span>(icon: <span class="string">"plus"</span>) {
+                            showingAddAppointment = <span class="keyword">true</span>
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle(<span class="string">"Calendar"</span>)
+            .sheet(isPresented: $showingAddAppointment) {
+                <span class="type">AddAppointmentView</span>(selectedDate: selectedDate)
+            }
+        }
+    }
+}</code></pre>
+
+<h3>6.2 ClientsView — Клиенты</h3>
+<p>Список клиентов с поиском и фильтрацией:</p>
+
+<pre><code><span class="keyword">struct</span> <span class="type">ClientsView</span>: <span class="type">View</span> {
+    <span class="keyword">@Environment</span>(\.<span class="property">modelContext</span>) <span class="keyword">private var</span> modelContext
+    <span class="keyword">@Query</span>(sort: \<span class="type">Client</span>.name) <span class="keyword">private var</span> clients: [<span class="type">Client</span>]
+
+    <span class="keyword">@State private var</span> searchText = <span class="string">""</span>
+    <span class="keyword">@State private var</span> selectedFilter: <span class="type">ClientFilter</span> = .all
+
+    <span class="keyword">private var</span> filteredClients: [<span class="type">Client</span>] {
+        <span class="keyword">var</span> result = clients
+
+        <span class="comment">// Поиск</span>
+        <span class="keyword">if</span> !searchText.isEmpty {
+            result = result.<span class="function">filter</span> {
+                $0.name.<span class="function">localizedCaseInsensitiveContains</span>(searchText)
+            }
+        }
+
+        <span class="comment">// Фильтры</span>
+        <span class="keyword">switch</span> selectedFilter {
+        <span class="keyword">case</span> .all: <span class="keyword">break</span>
+        <span class="keyword">case</span> .recent:
+            <span class="keyword">let</span> thirtyDaysAgo = <span class="type">Calendar</span>.current.<span class="function">date</span>(byAdding: .day, value: -<span class="string">30</span>, to: <span class="type">Date</span>())!
+            result = result.<span class="function">filter</span> { $0.appointments.<span class="function">contains</span> { $0.date > thirtyDaysAgo } }
+        <span class="keyword">case</span> .frequent:
+            result = result.<span class="function">filter</span> { $0.appointments.count >= <span class="string">3</span> }
+        <span class="keyword">case</span> .new:
+            result = result.<span class="function">filter</span> { $0.appointments.isEmpty }
+        }
+
+        <span class="keyword">return</span> result
+    }
+}</code></pre>
+
+<h3>6.3 ProfileView — Профиль</h3>
+<p>Профиль мастера с услугами и статистикой заработка:</p>
+
+<pre><code><span class="keyword">struct</span> <span class="type">ProfileView</span>: <span class="type">View</span> {
+    <span class="keyword">@Query private var</span> masters: [<span class="type">Master</span>]
+    <span class="keyword">@Query</span>(<span class="keyword">filter</span>: #<span class="type">Predicate</span><<span class="type">Service</span>> { $0.isActive }) <span class="keyword">private var</span> services: [<span class="type">Service</span>]
+
+    <span class="keyword">private let</span> statsCache = <span class="type">StatsCache</span>.shared
+
+    <span class="keyword">var</span> body: <span class="keyword">some</span> <span class="type">View</span> {
+        <span class="type">NavigationStack</span> {
+            <span class="type">ScrollView</span> {
+                <span class="type">VStack</span> {
+                    <span class="comment">// Заголовок профиля</span>
+                    profileHeader
+
+                    <span class="comment">// Статистика</span>
+                    statsRow
+
+                    <span class="comment">// Заработок</span>
+                    earningsSection
+
+                    <span class="comment">// Услуги</span>
+                    servicesSection
+                }
+            }
+        }
+    }
+
+    <span class="keyword">private var</span> earningsSection: <span class="keyword">some</span> <span class="type">View</span> {
+        <span class="type">HStack</span> {
+            <span class="type">EarningsCard</span>(
+                title: <span class="string">"This Month"</span>,
+                amount: statsCache.thisMonthEarnings,
+                icon: <span class="string">"calendar"</span>,
+                color: .green
+            )
+            <span class="type">EarningsCard</span>(
+                title: <span class="string">"This Year"</span>,
+                amount: statsCache.thisYearEarnings,
+                icon: <span class="string">"chart.line.uptrend.xyaxis"</span>,
+                color: .blue
+            )
+        }
+    }
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2 id="chapter7">7. AI-интеграция</h2>
+
+<h3>7.1 Обзор</h3>
+<p>Приложение использует Groq API для AI-функций. Groq предоставляет бесплатный доступ к моделям LLaMA.</p>
+
+<h3>7.2 AIService</h3>
+
+<pre><code><span class="keyword">@MainActor</span>
+<span class="keyword">@Observable</span>
+<span class="keyword">class</span> <span class="type">AIService</span> {
+    <span class="keyword">static let</span> shared = <span class="type">AIService</span>()
+
+    <span class="keyword">var</span> isLoading = <span class="keyword">false</span>
+    <span class="keyword">var</span> lastError: <span class="type">String</span>?
+
+    <span class="keyword">private let</span> apiKey = <span class="string">""</span>  <span class="comment">// Вставь свой ключ</span>
+    <span class="keyword">private let</span> baseURL = <span class="string">"https://api.groq.com/openai/v1/chat/completions"</span>
+
+    <span class="keyword">func</span> <span class="function">getResponse</span>(prompt: <span class="type">String</span>, context: <span class="type">String</span> = <span class="string">""</span>) <span class="keyword">async</span> -> <span class="type">String</span> {
+        <span class="comment">// Если нет ключа - возвращаем демо-ответ</span>
+        <span class="keyword">guard</span> !apiKey.isEmpty <span class="keyword">else</span> {
+            <span class="keyword">try? await</span> <span class="type">Task</span>.<span class="function">sleep</span>(nanoseconds: <span class="string">800_000_000</span>)
+            <span class="keyword">return</span> <span class="function">mockResponse</span>(for: prompt)
+        }
+
+        isLoading = <span class="keyword">true</span>
+        <span class="keyword">defer</span> { isLoading = <span class="keyword">false</span> }
+
+        <span class="keyword">let</span> body: [<span class="type">String</span>: <span class="type">Any</span>] = [
+            <span class="string">"model"</span>: <span class="string">"llama-3.1-8b-instant"</span>,
+            <span class="string">"messages"</span>: [
+                [<span class="string">"role"</span>: <span class="string">"system"</span>, <span class="string">"content"</span>: systemPrompt + context],
+                [<span class="string">"role"</span>: <span class="string">"user"</span>, <span class="string">"content"</span>: prompt]
+            ],
+            <span class="string">"max_tokens"</span>: <span class="string">500</span>,
+            <span class="string">"temperature"</span>: <span class="string">0.7</span>
+        ]
+
+        <span class="keyword">var</span> request = <span class="type">URLRequest</span>(url: <span class="type">URL</span>(string: baseURL)!)
+        request.httpMethod = <span class="string">"POST"</span>
+        request.<span class="function">setValue</span>(<span class="string">"Bearer \(apiKey)"</span>, forHTTPHeaderField: <span class="string">"Authorization"</span>)
+        request.<span class="function">setValue</span>(<span class="string">"application/json"</span>, forHTTPHeaderField: <span class="string">"Content-Type"</span>)
+        request.httpBody = <span class="keyword">try?</span> <span class="type">JSONSerialization</span>.<span class="function">data</span>(withJSONObject: body)
+
+        <span class="keyword">do</span> {
+            <span class="keyword">let</span> (data, _) = <span class="keyword">try await</span> <span class="type">URLSession</span>.shared.<span class="function">data</span>(for: request)
+            <span class="comment">// Парсим ответ...</span>
+            <span class="keyword">return</span> parsedResponse
+        } <span class="keyword">catch</span> {
+            <span class="keyword">return</span> <span class="function">mockResponse</span>(for: prompt)
+        }
+    }
+}</code></pre>
+
+<h3>7.3 Получение API-ключа Groq</h3>
+<ol>
+    <li>Зайди на <a href="https://console.groq.com">console.groq.com</a></li>
+    <li>Зарегистрируйся (бесплатно)</li>
+    <li>Перейди в API Keys</li>
+    <li>Создай новый ключ</li>
+    <li>Вставь в переменную <code>apiKey</code></li>
+</ol>
+
+<div class="warning-box">
+    <strong>Важно:</strong> Бесплатный тариф Groq ограничен — несколько запросов в минуту. Для production нужен платный план.
+</div>
+
+<h3>7.4 Quick Actions</h3>
+
+<pre><code><span class="keyword">enum</span> <span class="type">QuickAction</span>: <span class="type">CaseIterable</span> {
+    <span class="keyword">case</span> description  <span class="comment">// Описание услуги</span>
+    <span class="keyword">case</span> message      <span class="comment">// Сообщение клиенту</span>
+    <span class="keyword">case</span> tips         <span class="comment">// Бизнес-советы</span>
+    <span class="keyword">case</span> stats        <span class="comment">// Анализ статистики</span>
+
+    <span class="keyword">var</span> title: <span class="type">String</span> { ... }
+    <span class="keyword">var</span> icon: <span class="type">String</span> { ... }
+    <span class="keyword">var</span> colors: [<span class="type">Color</span>] { ... }
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2 id="chapter8">8. Кэширование и оптимизация</h2>
+
+<h3>8.1 StatsCache</h3>
+<p>Для оптимизации запросов к базе используется кэш статистики:</p>
+
+<pre><code><span class="keyword">@MainActor</span>
+<span class="keyword">final class</span> <span class="type">StatsCache</span> {
+    <span class="keyword">static let</span> shared = <span class="type">StatsCache</span>()
+
+    <span class="keyword">private(set) var</span> clientCount: <span class="type">Int</span> = <span class="string">0</span>
+    <span class="keyword">private(set) var</span> appointmentCount: <span class="type">Int</span> = <span class="string">0</span>
+    <span class="keyword">private(set) var</span> activeServicesCount: <span class="type">Int</span> = <span class="string">0</span>
+    <span class="keyword">private(set) var</span> thisMonthAppointments: <span class="type">Int</span> = <span class="string">0</span>
+    <span class="keyword">private(set) var</span> thisMonthEarnings: <span class="type">Decimal</span> = <span class="string">0</span>
+    <span class="keyword">private(set) var</span> thisYearEarnings: <span class="type">Decimal</span> = <span class="string">0</span>
+
+    <span class="keyword">private var</span> lastRefresh: <span class="type">Date</span>?
+    <span class="keyword">private let</span> cacheTimeout: <span class="type">TimeInterval</span> = <span class="string">5</span> <span class="comment">// 5 секунд</span>
+
+    <span class="keyword">func</span> <span class="function">refreshIfNeeded</span>(context: <span class="type">ModelContext</span>) {
+        <span class="keyword">if let</span> last = lastRefresh,
+           <span class="type">Date</span>().<span class="function">timeIntervalSince</span>(last) < cacheTimeout {
+            <span class="keyword">return</span> <span class="comment">// Кэш ещё свежий</span>
+        }
+        <span class="function">refresh</span>(context: context)
+    }
+
+    <span class="keyword">func</span> <span class="function">refresh</span>(context: <span class="type">ModelContext</span>) {
+        <span class="comment">// Подсчёт клиентов</span>
+        <span class="keyword">let</span> clientDescriptor = <span class="type">FetchDescriptor</span><<span class="type">Client</span>>()
+        clientCount = (<span class="keyword">try?</span> context.<span class="function">fetchCount</span>(clientDescriptor)) ?? <span class="string">0</span>
+
+        <span class="comment">// Подсчёт записей</span>
+        <span class="keyword">let</span> appointmentDescriptor = <span class="type">FetchDescriptor</span><<span class="type">Appointment</span>>()
+        appointmentCount = (<span class="keyword">try?</span> context.<span class="function">fetchCount</span>(appointmentDescriptor)) ?? <span class="string">0</span>
+
+        <span class="comment">// Заработок за месяц</span>
+        <span class="keyword">let</span> startOfMonth = <span class="type">Calendar</span>.current.<span class="function">date</span>(from:
+            <span class="type">Calendar</span>.current.<span class="function">dateComponents</span>([.year, .month], from: <span class="type">Date</span>())
+        )!
+
+        <span class="keyword">let</span> monthDescriptor = <span class="type">FetchDescriptor</span><<span class="type">Appointment</span>>(
+            predicate: #<span class="type">Predicate</span> {
+                $0.status == .completed && $0.date >= startOfMonth
+            }
+        )
+
+        <span class="keyword">if let</span> monthAppointments = <span class="keyword">try?</span> context.<span class="function">fetch</span>(monthDescriptor) {
+            thisMonthEarnings = monthAppointments.<span class="function">reduce</span>(<span class="string">0</span>) {
+                $0 + ($1.service?.price ?? <span class="string">0</span>)
+            }
+        }
+
+        lastRefresh = <span class="type">Date</span>()
+    }
+
+    <span class="keyword">func</span> <span class="function">invalidate</span>() {
+        lastRefresh = <span class="keyword">nil</span>
+    }
+}</code></pre>
+
+<div class="info-box">
+    <strong>Когда вызывать invalidate():</strong>
+    <ul>
+        <li>После добавления/удаления клиента</li>
+        <li>После создания/удаления записи</li>
+        <li>После изменения статуса записи на completed</li>
+        <li>После добавления/удаления услуги</li>
+    </ul>
+</div>
+
+<div class="page-break"></div>
+
+<h2 id="chapter9">9. Валидация и безопасность</h2>
+
+<h3>9.1 InputValidator</h3>
+
+<pre><code><span class="keyword">enum</span> <span class="type">InputValidator</span> {
+    <span class="comment">// Проверка email</span>
+    <span class="keyword">static func</span> <span class="function">isValidEmail</span>(_ email: <span class="type">String</span>) -> <span class="type">Bool</span> {
+        <span class="keyword">guard</span> !email.isEmpty <span class="keyword">else</span> { <span class="keyword">return true</span> }
+        <span class="keyword">let</span> pattern = <span class="string">"^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}$"</span>
+        <span class="keyword">return</span> email.<span class="function">range</span>(of: pattern, options: .regularExpression) != <span class="keyword">nil</span>
+    }
+
+    <span class="comment">// Проверка телефона</span>
+    <span class="keyword">static func</span> <span class="function">isValidPhone</span>(_ phone: <span class="type">String</span>) -> <span class="type">Bool</span> {
+        <span class="keyword">guard</span> !phone.isEmpty <span class="keyword">else</span> { <span class="keyword">return true</span> }
+        <span class="keyword">let</span> digits = phone.<span class="function">filter</span> { $0.isNumber }
+        <span class="keyword">return</span> digits.count >= <span class="string">7</span> && digits.count <= <span class="string">15</span>
+    }
+
+    <span class="comment">// Проверка имени</span>
+    <span class="keyword">static func</span> <span class="function">isValidName</span>(_ name: <span class="type">String</span>) -> <span class="type">Bool</span> {
+        <span class="keyword">let</span> trimmed = name.<span class="function">trimmingCharacters</span>(in: .whitespacesAndNewlines)
+        <span class="keyword">return</span> trimmed.count >= <span class="string">2</span> && trimmed.count <= <span class="string">100</span>
+    }
+
+    <span class="comment">// Проверка цены</span>
+    <span class="keyword">static func</span> <span class="function">isValidPrice</span>(_ price: <span class="type">String</span>) -> <span class="type">Bool</span> {
+        <span class="keyword">guard let</span> value = <span class="type">Decimal</span>(string: price) <span class="keyword">else</span> { <span class="keyword">return false</span> }
+        <span class="keyword">return</span> value >= <span class="string">0</span> && value <= <span class="string">1_000_000</span>
+    }
+
+    <span class="comment">// Очистка от опасных символов</span>
+    <span class="keyword">static func</span> <span class="function">sanitize</span>(_ input: <span class="type">String</span>) -> <span class="type">String</span> {
+        <span class="keyword">var</span> result = input.<span class="function">trimmingCharacters</span>(in: .whitespacesAndNewlines)
+        <span class="comment">// Удаляем потенциально опасные символы</span>
+        <span class="keyword">let</span> dangerous: [<span class="type">Character</span>] = [<span class="string">"<"</span>, <span class="string">">"</span>, <span class="string">"&"</span>, <span class="string">"\""</span>, <span class="string">"'"</span>]
+        result.<span class="function">removeAll</span> { dangerous.<span class="function">contains</span>($0) }
+        <span class="keyword">return</span> result
+    }
+}</code></pre>
+
+<h3>9.2 Применение валидации</h3>
+
+<pre><code><span class="keyword">private func</span> <span class="function">saveClient</span>() {
+    <span class="comment">// Проверяем все поля</span>
+    <span class="keyword">guard</span> <span class="type">InputValidator</span>.<span class="function">isValidName</span>(name) <span class="keyword">else</span> {
+        <span class="type">HapticManager</span>.<span class="function">notification</span>(.error)
+        <span class="keyword">return</span>
+    }
+    <span class="keyword">guard</span> <span class="type">InputValidator</span>.<span class="function">isValidPhone</span>(phone) <span class="keyword">else</span> {
+        <span class="type">HapticManager</span>.<span class="function">notification</span>(.error)
+        <span class="keyword">return</span>
+    }
+    <span class="keyword">guard</span> <span class="type">InputValidator</span>.<span class="function">isValidEmail</span>(email) <span class="keyword">else</span> {
+        <span class="type">HapticManager</span>.<span class="function">notification</span>(.error)
+        <span class="keyword">return</span>
+    }
+
+    <span class="comment">// Очищаем данные перед сохранением</span>
+    <span class="keyword">let</span> client = <span class="type">Client</span>(
+        name: <span class="type">InputValidator</span>.<span class="function">sanitize</span>(name),
+        phone: <span class="type">InputValidator</span>.<span class="function">sanitize</span>(phone),
+        email: <span class="type">InputValidator</span>.<span class="function">sanitize</span>(email)
+    )
+    modelContext.<span class="function">insert</span>(client)
+}</code></pre>
+
+<div class="page-break"></div>
+
+<h2 id="chapter10">10. Как создать такое приложение с нуля</h2>
+
+<h3>Шаг 1: Создание проекта</h3>
+<ol>
+    <li>Открой Xcode → File → New → Project</li>
+    <li>Выбери App</li>
+    <li>Interface: SwiftUI</li>
+    <li>Storage: SwiftData</li>
+    <li>Minimum Deployments: iOS 26.0</li>
+</ol>
+
+<h3>Шаг 2: Создание моделей</h3>
+<p>Создай файл <code>Models.swift</code> и добавь модели с макросом <code>@Model</code>:</p>
+<ul>
+    <li>Master — данные владельца</li>
+    <li>Client — клиенты</li>
+    <li>Service — услуги</li>
+    <li>Appointment — записи</li>
+</ul>
+
+<h3>Шаг 3: Дизайн-система</h3>
+<p>Создай <code>DesignSystem.swift</code> со всеми константами (цвета, отступы, шрифты). Это упростит поддержку.</p>
+
+<h3>Шаг 4: Компоненты</h3>
+<p>Создай переиспользуемые компоненты в <code>GlassComponents.swift</code>:</p>
+<ul>
+    <li>GlassCard</li>
+    <li>GlassButton</li>
+    <li>FormField</li>
+    <li>GlassFAB</li>
+</ul>
+
+<h3>Шаг 5: Экраны</h3>
+<p>Создай основные экраны:</p>
+<ol>
+    <li>OnboardingView — первый запуск</li>
+    <li>MainTabView — навигация</li>
+    <li>CalendarView — календарь</li>
+    <li>ClientsView — клиенты</li>
+    <li>ProfileView — профиль</li>
+    <li>SettingsView — настройки</li>
+</ol>
+
+<h3>Шаг 6: Оптимизация</h3>
+<ul>
+    <li>Добавь StatsCache для кэширования</li>
+    <li>Добавь индексы в модели</li>
+    <li>Используй LazyVStack вместо VStack для списков</li>
+</ul>
+
+<h3>Шаг 7: Безопасность</h3>
+<ul>
+    <li>Добавь InputValidator</li>
+    <li>Валидируй все входные данные</li>
+    <li>Очищай данные от опасных символов</li>
+</ul>
+
+<h3>Шаг 8: AI (опционально)</h3>
+<ol>
+    <li>Зарегистрируйся на Groq</li>
+    <li>Получи API-ключ</li>
+    <li>Создай AIService</li>
+    <li>Добавь AIAssistantView</li>
+</ol>
+
+<div class="success-box">
+    <h3>Гото��о!</h3>
+    <p>Теперь у тебя есть полное понимание архитектуры SoloStyle. Ты можешь объяснить каждую часть кода и воссоздать приложение с нуля.</p>
+</div>
+
+<hr style="margin-top: 50px;">
+<p style="text-align: center; color: #999; margin-top: 30px;">
+    SoloStyle Tutorial v1.0<br>
+    Для сохранения в PDF: File → Print → Save as PDF
+</p>
+
+</body>
+</html>
