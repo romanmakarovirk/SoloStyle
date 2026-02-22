@@ -94,17 +94,16 @@ actor NetworkManager {
     static let shared = NetworkManager()
 
     // Local dev: "http://localhost:8000/api/v1"
-    // Production: replace with your Railway URL after deploy, e.g.:
-    //   "https://solostyle-production.up.railway.app/api/v1"
-    private let baseURL = "http://localhost:8000/api/v1"
+    // Production (Render):
+    private let baseURL = "https://solostyle-api.onrender.com/api/v1"
 
     private let session: URLSession
     private let decoder: JSONDecoder
 
     private init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
         self.decoder = JSONDecoder()
     }
@@ -114,7 +113,7 @@ actor NetworkManager {
         query: String,
         latitude: Double,
         longitude: Double,
-        radiusKm: Double = 15.0
+        radiusKm: Double = 50.0
     ) async throws -> SearchResponse {
         let request = SearchRequest(
             query: query,

@@ -48,7 +48,7 @@ class SearchRequest(BaseModel):
     query: str
     latitude: float
     longitude: float
-    radius_km: float = 15.0
+    radius_km: float = 50.0
 
 
 class SearchResponse(BaseModel):
