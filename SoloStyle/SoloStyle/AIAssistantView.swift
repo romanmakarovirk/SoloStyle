@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import MapKit
 import Combine
 
 // MARK: - AI Service (Search via backend)
@@ -53,23 +54,35 @@ struct AIAssistantView: View {
 
     @State private var inputText = ""
     @State private var chatMessages: [ChatMessage] = []
+    @State private var keyboardVisible = false
     @FocusState private var inputFocused: Bool
 
     var body: some View {
         NavigationStack {
             mainContent
+                .onTapGesture {
+                    inputFocused = false
+                }
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     VStack(spacing: 0) {
                         messageInput
-                        // Space for the floating tab bar
-                        Color.clear.frame(height: tabBarHeight)
+                        // Space for the floating tab bar — hide when keyboard covers it
+                        if !keyboardVisible {
+                            Color.clear.frame(height: tabBarHeight)
+                        }
                     }
                 }
                 .background(Design.Colors.backgroundPrimary)
-                .scrollDismissesKeyboard(.interactively)
-                .navigationTitle("AI Assistant")
+                .scrollDismissesKeyboard(.immediately)
+                .navigationTitle(L.aiAssistant)
                 .navigationBarTitleDisplayMode(.inline)
                 .onAppear { locationManager.requestPermission() }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                    withAnimation(.easeOut(duration: 0.25)) { keyboardVisible = true }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                    withAnimation(.easeOut(duration: 0.25)) { keyboardVisible = false }
+                }
         }
     }
 
@@ -94,12 +107,12 @@ struct AIAssistantView: View {
                 avatarView
                     .animateOnAppear()
 
-                Text("Найди мастера")
+                Text(L.findMaster)
                     .font(Design.Typography.title2)
                     .foregroundStyle(Design.Colors.textPrimary)
                     .animateOnAppear(delay: 0.1)
 
-                Text("Опиши, что тебе нужно, и я подберу лучших мастеров поблизости")
+                Text(L.findMasterSubtitle)
                     .font(Design.Typography.subheadline)
                     .foregroundStyle(Design.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -159,7 +172,7 @@ struct AIAssistantView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(locationManager.isAuthorized ? Design.Colors.accentSuccess : Design.Colors.accentWarning)
 
-            Text(locationManager.isAuthorized ? "Геолокация активна" : "Геолокация не разрешена")
+            Text(locationManager.isAuthorized ? L.locationActive : L.locationDenied)
                 .font(Design.Typography.caption2)
                 .foregroundStyle(Design.Colors.textTertiary)
         }
@@ -179,8 +192,17 @@ struct AIAssistantView: View {
                             .id(msg.id)
                     }
 
-                    // Master cards after the last AI message
+                    // Map + master cards after the last AI message
                     if !aiService.lastMasters.isEmpty {
+                        // Map first — right after the AI text response
+                        MastersMapView(
+                            masters: aiService.lastMasters,
+                            userLatitude: locationManager.latitude,
+                            userLongitude: locationManager.longitude
+                        )
+                        .id("map")
+
+                        // Then master cards list
                         MasterCardsView(masters: aiService.lastMasters)
                             .id("masters")
                     }
@@ -195,7 +217,7 @@ struct AIAssistantView: View {
                 .padding(.bottom, Design.Spacing.s)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .scrollDismissesKeyboard(.interactively)
+            .scrollDismissesKeyboard(.immediately)
             .onChange(of: chatMessages.count) { _, _ in
                 scrollToBottom(proxy)
             }
@@ -206,8 +228,10 @@ struct AIAssistantView: View {
             }
             .onChange(of: aiService.lastMasters.count) { _, count in
                 if count > 0 {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        proxy.scrollTo("masters", anchor: .bottom)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.easeOut(duration: 0.4)) {
+                            proxy.scrollTo("masters", anchor: .bottom)
+                        }
                     }
                 }
             }
@@ -244,7 +268,7 @@ struct AIAssistantView: View {
             }
 
             HStack(spacing: Design.Spacing.s) {
-                TextField("Опишите услугу...", text: $inputText, axis: .vertical)
+                TextField(L.describeService, text: $inputText, axis: .vertical)
                     .lineLimit(1...5)
                     .font(Design.Typography.body)
                     .focused($inputFocused)
@@ -270,10 +294,6 @@ struct AIAssistantView: View {
         }
         .padding(.horizontal, Design.Spacing.m)
         .padding(.vertical, Design.Spacing.xs)
-        .background(
-            Design.Colors.backgroundPrimary
-                .ignoresSafeArea(edges: .bottom)
-        )
     }
 
     // MARK: - Logic
@@ -319,10 +339,10 @@ enum QuickAction: CaseIterable {
 
     var title: String {
         switch self {
-        case .haircut: "Стрижка"
-        case .manicure: "Маникюр"
-        case .massage: "Массаж"
-        case .makeup: "Макияж"
+        case .haircut: L.qaHaircut
+        case .manicure: L.qaManicure
+        case .massage: L.qaMassage
+        case .makeup: L.qaMakeup
         }
     }
 
@@ -421,7 +441,7 @@ struct MasterCardsView: View {
                 Image(systemName: "person.2.fill")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Design.Colors.accentPrimary)
-                Text("Найденные мастера")
+                Text(L.foundMasters)
                     .font(Design.Typography.subheadline)
                     .fontWeight(.semibold)
                     .foregroundStyle(Design.Colors.textSecondary)
@@ -438,99 +458,127 @@ struct MasterCardsView: View {
 
 struct MasterCard: View {
     let master: MasterResult
+    @State private var showingBooking = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top row: avatar + name + rating
-            HStack(spacing: Design.Spacing.s) {
-                // Avatar
-                Text(initials(master.masterName))
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(avatarGradient, in: .circle)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(master.masterName)
-                        .font(Design.Typography.headline)
-                        .foregroundStyle(Design.Colors.textPrimary)
-
-                    Text(master.serviceName)
-                        .font(Design.Typography.caption1)
-                        .foregroundStyle(Design.Colors.textSecondary)
-                        .lineLimit(1)
-                }
-
-                Spacer()
-
-                // Rating badge
-                HStack(spacing: 3) {
-                    Image(systemName: "star.fill")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.orange)
-                    Text(String(format: "%.1f", master.rating))
+        Button {
+            HapticManager.impact(.light)
+            showingBooking = true
+        } label: {
+            VStack(spacing: 0) {
+                // Top row: avatar + name + rating
+                HStack(spacing: Design.Spacing.s) {
+                    // Avatar
+                    Text(initials(master.masterName))
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(Design.Colors.textPrimary)
-                }
-                .padding(.horizontal, Design.Spacing.xs)
-                .padding(.vertical, Design.Spacing.xxs)
-                .glassEffect(.regular.tint(Color.orange.opacity(0.1)), in: .capsule)
-            }
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(avatarGradient, in: .circle)
 
-            // Divider
-            Rectangle()
-                .fill(Design.Colors.textTertiary.opacity(0.2))
-                .frame(height: 0.5)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(master.masterName)
+                            .font(Design.Typography.headline)
+                            .foregroundStyle(Design.Colors.textPrimary)
+
+                        Text(master.serviceName)
+                            .font(Design.Typography.caption1)
+                            .foregroundStyle(Design.Colors.textSecondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    // Rating badge
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                        Text(String(format: "%.1f", master.rating))
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                    }
+                    .padding(.horizontal, Design.Spacing.xs)
+                    .padding(.vertical, Design.Spacing.xxs)
+                    .glassEffect(.regular.tint(Color.orange.opacity(0.1)), in: .capsule)
+                }
+
+                // Divider
+                Rectangle()
+                    .fill(Design.Colors.textTertiary.opacity(0.2))
+                    .frame(height: 0.5)
+                    .padding(.vertical, Design.Spacing.s)
+
+                // Bottom row: price, distance, experience
+                HStack(spacing: 0) {
+                    // Price
+                    VStack(spacing: 2) {
+                        Text(master.formattedPrice)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                        Text(L.priceLabel)
+                            .font(Design.Typography.caption2)
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Separator dot
+                    Circle()
+                        .fill(Design.Colors.textTertiary.opacity(0.3))
+                        .frame(width: 4, height: 4)
+
+                    // Distance
+                    VStack(spacing: 2) {
+                        Text(master.formattedDistance)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                        Text(L.distanceLabel)
+                            .font(Design.Typography.caption2)
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Separator dot
+                    Circle()
+                        .fill(Design.Colors.textTertiary.opacity(0.3))
+                        .frame(width: 4, height: 4)
+
+                    // Experience
+                    VStack(spacing: 2) {
+                        Text(L.yearsExp(master.experience))
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                        Text(L.experienceLabel)
+                            .font(Design.Typography.caption2)
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+
+                // Book button
+                HStack(spacing: Design.Spacing.xs) {
+                    Image(systemName: "calendar.badge.plus")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text(L.bookAppointment)
+                        .font(.system(size: 13, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
                 .padding(.vertical, Design.Spacing.s)
-
-            // Bottom row: price, distance, experience
-            HStack(spacing: 0) {
-                // Price
-                VStack(spacing: 2) {
-                    Text(master.formattedPrice)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Design.Colors.textPrimary)
-                    Text("цена")
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.textTertiary)
-                }
-                .frame(maxWidth: .infinity)
-
-                // Separator dot
-                Circle()
-                    .fill(Design.Colors.textTertiary.opacity(0.3))
-                    .frame(width: 4, height: 4)
-
-                // Distance
-                VStack(spacing: 2) {
-                    Text(master.formattedDistance)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Design.Colors.textPrimary)
-                    Text("до вас")
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.textTertiary)
-                }
-                .frame(maxWidth: .infinity)
-
-                // Separator dot
-                Circle()
-                    .fill(Design.Colors.textTertiary.opacity(0.3))
-                    .frame(width: 4, height: 4)
-
-                // Experience
-                VStack(spacing: 2) {
-                    Text("\(master.experience) лет")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Design.Colors.textPrimary)
-                    Text("стаж")
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.textTertiary)
-                }
-                .frame(maxWidth: .infinity)
+                .background(
+                    Capsule()
+                        .fill(Design.Colors.accentPrimary)
+                )
+                .padding(.top, Design.Spacing.s)
             }
+            .padding(Design.Spacing.m)
+            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
         }
-        .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showingBooking) {
+            BookMasterSheet(master: master)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     private var avatarGradient: LinearGradient {
@@ -547,6 +595,655 @@ struct MasterCard: View {
             return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
         }
         return String(name.prefix(2)).uppercased()
+    }
+}
+
+// MARK: - Book Master Sheet
+
+struct BookMasterSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    let master: MasterResult
+
+    @State private var selectedDate = Date()
+    @State private var clientName = ""
+    @State private var clientPhone = ""
+    @State private var comment = ""
+    @State private var isBooked = false
+    @State private var isSaving = false
+    @FocusState private var focusedField: BookingField?
+
+    private enum BookingField { case name, phone, comment }
+
+    private var canBook: Bool {
+        !clientName.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var avatarGradient: LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
+        let hash = abs(master.masterName.hashValue)
+        let c1 = colors[hash % colors.count]
+        let c2 = colors[(hash / colors.count) % colors.count]
+        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Design.Colors.backgroundPrimary.ignoresSafeArea()
+
+                if isBooked {
+                    successView
+                } else {
+                    bookingForm
+                }
+            }
+            .navigationTitle(L.bookingTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        HapticManager.impact(.light)
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Booking Form
+
+    private var bookingForm: some View {
+        ScrollView {
+            VStack(spacing: Design.Spacing.l) {
+                // Master info card
+                masterInfoCard
+                    .animateOnAppear()
+
+                // Date & time
+                dateTimeSection
+                    .animateOnAppear(delay: 0.05)
+
+                // Client info
+                clientInfoSection
+                    .animateOnAppear(delay: 0.1)
+
+                // Comment
+                commentSection
+                    .animateOnAppear(delay: 0.15)
+
+                // Confirm button
+                confirmButton
+                    .animateOnAppear(delay: 0.2)
+            }
+            .padding(.horizontal, Design.Spacing.m)
+            .padding(.top, Design.Spacing.s)
+            .padding(.bottom, Design.Spacing.xxl)
+        }
+        .scrollDismissesKeyboard(.immediately)
+    }
+
+    // MARK: - Master Info Card
+
+    private var masterInfoCard: some View {
+        HStack(spacing: Design.Spacing.m) {
+            // Avatar
+            Text(initials(master.masterName))
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(avatarGradient, in: .circle)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(master.masterName)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Design.Colors.textPrimary)
+
+                Text(master.serviceName)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Design.Colors.textSecondary)
+
+                HStack(spacing: Design.Spacing.m) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                        Text(String(format: "%.1f", master.rating))
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(Design.Colors.textPrimary)
+
+                    Text(master.formattedPrice)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Design.Colors.accentPrimary)
+
+                    HStack(spacing: 3) {
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 9))
+                        Text(master.formattedDistance)
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .foregroundStyle(Design.Colors.textTertiary)
+                }
+                .padding(.top, 2)
+            }
+
+            Spacer()
+        }
+        .padding(Design.Spacing.m)
+        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+    }
+
+    // MARK: - Date Time Section
+
+    private var dateTimeSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.s) {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Design.Colors.accentPrimary)
+                    .frame(width: 32, height: 32)
+                    .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+
+                Text(L.selectDateTime)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Design.Colors.textSecondary)
+
+                Spacer()
+            }
+
+            DatePicker(
+                "",
+                selection: $selectedDate,
+                in: Date()...,
+                displayedComponents: [.date, .hourAndMinute]
+            )
+            .datePickerStyle(.graphical)
+            .tint(Design.Colors.accentPrimary)
+        }
+        .padding(Design.Spacing.m)
+        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+    }
+
+    // MARK: - Client Info Section
+
+    private var clientInfoSection: some View {
+        VStack(spacing: Design.Spacing.s) {
+            HStack(spacing: Design.Spacing.s) {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Design.Colors.accentPrimary)
+                    .frame(width: 24)
+
+                TextField(L.yourName, text: $clientName)
+                    .font(Design.Typography.body)
+                    .textContentType(.name)
+                    .focused($focusedField, equals: .name)
+            }
+            .padding(Design.Spacing.m)
+            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+
+            HStack(spacing: Design.Spacing.s) {
+                Image(systemName: "phone.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.green)
+                    .frame(width: 24)
+
+                TextField(L.yourPhone, text: $clientPhone)
+                    .font(Design.Typography.body)
+                    .textContentType(.telephoneNumber)
+                    .keyboardType(.phonePad)
+                    .focused($focusedField, equals: .phone)
+            }
+            .padding(Design.Spacing.m)
+            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+        }
+    }
+
+    // MARK: - Comment Section
+
+    private var commentSection: some View {
+        HStack(alignment: .top, spacing: Design.Spacing.s) {
+            Image(systemName: "text.quote")
+                .font(.system(size: 14))
+                .foregroundStyle(.mint)
+                .frame(width: 24)
+                .padding(.top, 2)
+
+            TextField(L.bookingComment, text: $comment, axis: .vertical)
+                .lineLimit(2...4)
+                .font(Design.Typography.body)
+                .focused($focusedField, equals: .comment)
+        }
+        .padding(Design.Spacing.m)
+        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+    }
+
+    // MARK: - Confirm Button
+
+    private var confirmButton: some View {
+        Button {
+            bookAppointment()
+        } label: {
+            HStack(spacing: Design.Spacing.s) {
+                if isSaving {
+                    ProgressView()
+                        .tint(.white)
+                } else {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                Text(L.confirmBooking)
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Design.Spacing.m)
+            .background(
+                RoundedRectangle(cornerRadius: Design.Radius.l)
+                    .fill(canBook
+                        ? LinearGradient(colors: [Design.Colors.accentPrimary, Design.Colors.accentPrimary.opacity(0.7)], startPoint: .leading, endPoint: .trailing)
+                        : LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing)
+                    )
+            )
+        }
+        .disabled(!canBook || isSaving)
+    }
+
+    // MARK: - Success View
+
+    private var successView: some View {
+        VStack(spacing: Design.Spacing.l) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(Design.Colors.accentSuccess.opacity(0.15))
+                    .frame(width: 100, height: 100)
+
+                Circle()
+                    .fill(Design.Colors.accentSuccess.opacity(0.3))
+                    .frame(width: 76, height: 76)
+
+                Image(systemName: "checkmark")
+                    .font(.system(size: 36, weight: .bold))
+                    .foregroundStyle(Design.Colors.accentSuccess)
+            }
+            .animateOnAppear()
+
+            VStack(spacing: Design.Spacing.xs) {
+                Text(L.bookingSuccess)
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(Design.Colors.textPrimary)
+                    .animateOnAppear(delay: 0.1)
+
+                Text(L.bookingSuccessMsg)
+                    .font(Design.Typography.subheadline)
+                    .foregroundStyle(Design.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Design.Spacing.xl)
+                    .animateOnAppear(delay: 0.15)
+            }
+
+            // Booking summary
+            VStack(spacing: Design.Spacing.s) {
+                summaryRow(icon: "person.fill", label: L.masterLabel, value: master.masterName, tint: .purple)
+                summaryRow(icon: "scissors", label: L.serviceLabel, value: master.serviceName, tint: .blue)
+                summaryRow(icon: "calendar", label: L.selectDateTime, value: selectedDate.formatted(date: .abbreviated, time: .shortened), tint: .orange)
+                summaryRow(icon: "rublesign.circle.fill", label: L.priceLabel, value: master.formattedPrice, tint: .green)
+            }
+            .padding(Design.Spacing.m)
+            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+            .padding(.horizontal, Design.Spacing.m)
+            .animateOnAppear(delay: 0.2)
+
+            Spacer()
+
+            Button {
+                HapticManager.impact(.light)
+                dismiss()
+            } label: {
+                Text(L.great)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Design.Spacing.m)
+                    .background(
+                        RoundedRectangle(cornerRadius: Design.Radius.l)
+                            .fill(Design.Colors.accentSuccess)
+                    )
+            }
+            .padding(.horizontal, Design.Spacing.m)
+            .padding(.bottom, Design.Spacing.xl)
+            .animateOnAppear(delay: 0.25)
+        }
+    }
+
+    private func summaryRow(icon: String, label: String, value: String, tint: Color) -> some View {
+        HStack(spacing: Design.Spacing.s) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(tint)
+                .frame(width: 28, height: 28)
+                .glassEffect(.regular.tint(tint.opacity(0.15)), in: .circle)
+
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundStyle(Design.Colors.textTertiary)
+
+            Spacer()
+
+            Text(value)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Design.Colors.textPrimary)
+        }
+    }
+
+    // MARK: - Logic
+
+    private func bookAppointment() {
+        focusedField = nil
+        isSaving = true
+        HapticManager.impact(.medium)
+
+        // Create local service from master data
+        let service = Service(
+            name: master.serviceName,
+            price: Decimal(master.price),
+            duration: 60
+        )
+        modelContext.insert(service)
+
+        // Create client
+        let name = clientName.trimmingCharacters(in: .whitespaces)
+        let phone = clientPhone.trimmingCharacters(in: .whitespaces)
+        let client = Client(
+            name: name,
+            phone: phone.isEmpty ? nil : phone
+        )
+        modelContext.insert(client)
+
+        // Create appointment
+        let appointment = Appointment(
+            date: selectedDate,
+            service: service,
+            client: client
+        )
+        if !comment.trimmingCharacters(in: .whitespaces).isEmpty {
+            appointment.notes = comment.trimmingCharacters(in: .whitespaces)
+        }
+        modelContext.insert(appointment)
+
+        // Schedule notification
+        if UserDefaults.standard.bool(forKey: "notificationsEnabled") {
+            NotificationManager.shared.scheduleReminder(for: appointment)
+        }
+
+        StatsCache.shared.invalidate()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            isSaving = false
+            withAnimation(Design.Animation.smooth) {
+                isBooked = true
+            }
+            HapticManager.notification(.success)
+        }
+    }
+
+    private func initials(_ name: String) -> String {
+        let parts = name.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(name.prefix(2)).uppercased()
+    }
+}
+
+// MARK: - Masters Map View
+
+struct MastersMapView: View {
+    let masters: [MasterResult]
+    let userLatitude: Double
+    let userLongitude: Double
+
+    @State private var isExpanded = false
+    @State private var selectedMaster: MasterResult?
+
+    /// Coordinate for a master — uses real coords if available, otherwise approximates from distanceKm
+    private func coordinate(for master: MasterResult, index: Int) -> CLLocationCoordinate2D {
+        if let lat = master.masterLat, let lon = master.masterLon {
+            return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        // Approximate: spread masters around user at their distance, evenly angled
+        let angle = (Double(index) / Double(max(masters.count, 1))) * 2 * .pi
+        // 1 degree latitude ≈ 111 km
+        let latOffset = (master.distanceKm / 111.0) * cos(angle)
+        let lonOffset = (master.distanceKm / (111.0 * cos(userLatitude * .pi / 180))) * sin(angle)
+        return CLLocationCoordinate2D(latitude: userLatitude + latOffset, longitude: userLongitude + lonOffset)
+    }
+
+    private var allMasterCoords: [(MasterResult, CLLocationCoordinate2D)] {
+        masters.enumerated().map { (i, m) in (m, coordinate(for: m, index: i)) }
+    }
+
+    private var mapRegion: MKCoordinateRegion {
+        let userCoord = CLLocationCoordinate2D(latitude: userLatitude, longitude: userLongitude)
+        var allCoords = [userCoord]
+        for (_, coord) in allMasterCoords {
+            allCoords.append(coord)
+        }
+
+        let lats = allCoords.map(\.latitude)
+        let lons = allCoords.map(\.longitude)
+        let center = CLLocationCoordinate2D(
+            latitude: (lats.min()! + lats.max()!) / 2,
+            longitude: (lons.min()! + lons.max()!) / 2
+        )
+        let spanLat = max((lats.max()! - lats.min()!) * 1.5, 0.02)
+        let spanLon = max((lons.max()! - lons.min()!) * 1.5, 0.02)
+
+        return MKCoordinateRegion(
+            center: center,
+            span: MKCoordinateSpan(latitudeDelta: spanLat, longitudeDelta: spanLon)
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.s) {
+            // Header
+            Button {
+                HapticManager.impact(.light)
+                withAnimation(Design.Animation.smooth) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: Design.Spacing.s) {
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.teal)
+                        .frame(width: 32, height: 32)
+                        .glassEffect(.regular.tint(Color.teal.opacity(0.15)), in: .circle)
+
+                    Text(L.mastersOnMap)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Design.Colors.textPrimary)
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Design.Colors.textTertiary)
+                        .frame(width: 28, height: 28)
+                        .glassEffect(.regular.tint(Color.white.opacity(0.08)), in: .circle)
+                }
+            }
+
+            mapContent
+                .frame(height: isExpanded ? 340 : 180)
+                .clipShape(RoundedRectangle(cornerRadius: Design.Radius.l))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Design.Radius.l)
+                        .strokeBorder(Design.Colors.textTertiary.opacity(0.15), lineWidth: 0.5)
+                )
+                .animation(Design.Animation.smooth, value: isExpanded)
+        }
+        .padding(Design.Spacing.m)
+        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+    }
+
+    private var mapContent: some View {
+        Map(initialPosition: .region(mapRegion)) {
+            // User location
+            Annotation(L.you, coordinate: CLLocationCoordinate2D(latitude: userLatitude, longitude: userLongitude)) {
+                ZStack {
+                    Circle()
+                        .fill(.blue.opacity(0.2))
+                        .frame(width: 34, height: 34)
+                    Circle()
+                        .fill(.blue)
+                        .frame(width: 16, height: 16)
+                    Circle()
+                        .strokeBorder(.white, lineWidth: 2.5)
+                        .frame(width: 16, height: 16)
+                }
+            }
+
+            // Master annotations — all masters, with real or approximated coords
+            ForEach(Array(allMasterCoords.enumerated()), id: \.element.0.id) { _, pair in
+                let (master, coord) = pair
+                Annotation(
+                    master.masterName,
+                    coordinate: coord
+                ) {
+                    MasterMapPin(master: master, isSelected: selectedMaster?.id == master.id)
+                        .onTapGesture {
+                            HapticManager.selection()
+                            withAnimation(Design.Animation.smooth) {
+                                selectedMaster = selectedMaster?.id == master.id ? nil : master
+                            }
+                        }
+                }
+            }
+        }
+        .mapStyle(.standard(pointsOfInterest: .excludingAll))
+        .mapControls {
+            MapCompass()
+        }
+        .overlay(alignment: .bottom) {
+            // Selected master info pill
+            if let master = selectedMaster {
+                HStack(spacing: Design.Spacing.s) {
+                    Text(String(master.masterName.prefix(1)))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(masterGradient(for: master), in: .circle)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(master.masterName)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                        Text("\(master.formattedPrice) \u{2022} \(master.formattedDistance)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Design.Colors.textSecondary)
+                    }
+
+                    Spacer()
+
+                    HStack(spacing: 3) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.orange)
+                        Text(String(format: "%.1f", master.rating))
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                    }
+                }
+                .padding(.horizontal, Design.Spacing.m)
+                .padding(.vertical, Design.Spacing.s)
+                .glassEffect(.regular.tint(Color.white.opacity(0.2)), in: .capsule)
+                .padding(.horizontal, Design.Spacing.s)
+                .padding(.bottom, Design.Spacing.s)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    private func masterGradient(for master: MasterResult) -> LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
+        let hash = abs(master.masterName.hashValue)
+        let c1 = colors[hash % colors.count]
+        let c2 = colors[(hash / colors.count) % colors.count]
+        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
+// MARK: - Master Map Pin
+
+struct MasterMapPin: View {
+    let master: MasterResult
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 2) {
+            ZStack {
+                // Outer glow when selected
+                if isSelected {
+                    Circle()
+                        .fill(pinColor.opacity(0.25))
+                        .frame(width: 44, height: 44)
+                }
+
+                // Main pin circle
+                Circle()
+                    .fill(pinGradient)
+                    .frame(width: isSelected ? 36 : 30, height: isSelected ? 36 : 30)
+                    .shadow(color: pinColor.opacity(0.4), radius: isSelected ? 8 : 4, y: 2)
+
+                // Initials
+                Text(initials)
+                    .font(.system(size: isSelected ? 13 : 11, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+
+            // Price tag
+            Text(master.formattedPrice)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Design.Colors.textPrimary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                )
+        }
+        .animation(Design.Animation.bouncy, value: isSelected)
+    }
+
+    private var initials: String {
+        let parts = master.masterName.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(master.masterName.prefix(2)).uppercased()
+    }
+
+    private var pinColor: Color {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
+        return colors[abs(master.masterName.hashValue) % colors.count]
+    }
+
+    private var pinGradient: LinearGradient {
+        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
+        let hash = abs(master.masterName.hashValue)
+        let c1 = colors[hash % colors.count]
+        let c2 = colors[(hash / colors.count) % colors.count]
+        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 }
 

@@ -11,9 +11,8 @@ import StoreKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
-    private let statsCache = StatsCache.shared
+    @ObservedObject private var lang = LanguageManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
-    @AppStorage("appLanguage") private var appLanguage = "en"
     @State private var showingLanguageSheet = false
     @State private var showingHelpCenter = false
     @State private var showingContactSheet = false
@@ -28,17 +27,13 @@ struct SettingsView: View {
 
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: Design.Spacing.l) {
-                        // Quick Stats
-                        quickStatsSection
-                            .animateOnAppear(delay: 0.1)
-
                         // Settings Sections
-                        settingsSection(title: "Preferences") {
+                        settingsSection(title: L.preferences) {
                             toggleRow(
                                 icon: "bell.badge",
                                 iconColor: .red,
-                                title: "Notifications",
-                                subtitle: "Appointment reminders",
+                                title: L.notifications,
+                                subtitle: L.appointmentReminders,
                                 isOn: $notificationsEnabled
                             )
 
@@ -47,8 +42,8 @@ struct SettingsView: View {
                             toggleRow(
                                 icon: "calendar",
                                 iconColor: .blue,
-                                title: "Calendar Sync",
-                                subtitle: "Sync with iOS Calendar",
+                                title: L.calendarSync,
+                                subtitle: L.syncWithIOSCalendar,
                                 isOn: $calendarSyncEnabled
                             )
 
@@ -57,7 +52,7 @@ struct SettingsView: View {
                             settingsRow(
                                 icon: "globe",
                                 iconColor: .green,
-                                title: "Language",
+                                title: L.language,
                                 value: currentLanguageName
                             ) {
                                 HapticManager.selection()
@@ -66,11 +61,11 @@ struct SettingsView: View {
                         }
                         .animateOnAppear(delay: 0.2)
 
-                        settingsSection(title: "Data") {
+                        settingsSection(title: L.data) {
                             settingsRow(
                                 icon: "square.and.arrow.up",
                                 iconColor: .blue,
-                                title: "Export Data",
+                                title: L.exportData,
                                 value: nil
                             ) {
                                 HapticManager.selection()
@@ -78,11 +73,11 @@ struct SettingsView: View {
                         }
                         .animateOnAppear(delay: 0.3)
 
-                        settingsSection(title: "Support") {
+                        settingsSection(title: L.support) {
                             settingsRow(
                                 icon: "questionmark.circle",
                                 iconColor: .orange,
-                                title: "Help Center",
+                                title: L.helpCenter,
                                 value: nil
                             ) {
                                 HapticManager.selection()
@@ -94,7 +89,7 @@ struct SettingsView: View {
                             settingsRow(
                                 icon: "envelope.fill",
                                 iconColor: .blue,
-                                title: "Contact Us",
+                                title: L.contactUs,
                                 value: nil
                             ) {
                                 HapticManager.selection()
@@ -106,7 +101,7 @@ struct SettingsView: View {
                             settingsRow(
                                 icon: "star.fill",
                                 iconColor: .yellow,
-                                title: "Rate App",
+                                title: L.rateApp,
                                 value: nil
                             ) {
                                 HapticManager.selection()
@@ -118,7 +113,7 @@ struct SettingsView: View {
                             settingsRow(
                                 icon: "doc.text",
                                 iconColor: .gray,
-                                title: "Privacy Policy",
+                                title: L.privacyPolicy,
                                 value: nil
                             ) {
                                 HapticManager.selection()
@@ -128,7 +123,7 @@ struct SettingsView: View {
                         .animateOnAppear(delay: 0.5)
 
                         #if DEBUG
-                        settingsSection(title: "Developer") {
+                        settingsSection(title: L.developer) {
                             Button {
                                 HapticManager.notification(.warning)
                                 hasCompletedOnboarding = false
@@ -143,7 +138,7 @@ struct SettingsView: View {
                                             .foregroundStyle(.red)
                                     }
 
-                                    Text("Reset Onboarding")
+                                    Text(L.resetOnboarding)
                                         .font(Design.Typography.body)
                                         .foregroundStyle(.red)
 
@@ -164,9 +159,9 @@ struct SettingsView: View {
                 }
                 .scrollBounceBehavior(.always)
             }
-            .navigationTitle("Settings")
+            .navigationTitle(L.settings)
             .sheet(isPresented: $showingLanguageSheet) {
-                LanguageSelectionView(selectedLanguage: $appLanguage)
+                LanguageSelectionView()
             }
             .sheet(isPresented: $showingHelpCenter) {
                 HelpCenterView()
@@ -199,22 +194,9 @@ struct SettingsView: View {
     }
 
     private var currentLanguageName: String {
-        switch appLanguage {
+        switch lang.language {
         case "ru": return "Русский"
         default: return "English"
-        }
-    }
-
-    // MARK: - Quick Stats
-
-    private var quickStatsSection: some View {
-        HStack(spacing: Design.Spacing.s) {
-            QuickStatCard(icon: "person.2.fill", value: "\(statsCache.clientCount)", label: "Clients", limit: nil, color: .blue)
-            QuickStatCard(icon: "calendar.badge.checkmark", value: "\(statsCache.thisMonthAppointments)", label: "This Month", limit: nil, color: .green)
-            QuickStatCard(icon: "scissors", value: "\(statsCache.activeServicesCount)", label: "Services", limit: nil, color: .purple)
-        }
-        .onAppear {
-            statsCache.refreshIfNeeded(context: modelContext)
         }
     }
 
@@ -336,7 +318,7 @@ struct SettingsView: View {
                 .font(Design.Typography.caption1)
                 .foregroundStyle(Design.Colors.textTertiary)
 
-            Text("Made with love for solo professionals")
+            Text(L.appFooter)
                 .font(Design.Typography.caption2)
                 .foregroundStyle(Design.Colors.textTertiary)
                 .padding(.top, Design.Spacing.xs)
@@ -346,55 +328,10 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Quick Stat Card
-
-struct QuickStatCard: View {
-    let icon: String
-    let value: String
-    let label: String
-    let limit: String?
-    let color: Color
-
-    var body: some View {
-        GlassCard(padding: Design.Spacing.s) {
-            VStack(spacing: Design.Spacing.xs) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(color)
-
-                HStack(spacing: 2) {
-                    Text(value)
-                        .font(Design.Typography.title3)
-                        .foregroundStyle(Design.Colors.textPrimary)
-
-                    if let limit {
-                        Text(limit)
-                            .font(Design.Typography.caption1)
-                            .foregroundStyle(Design.Colors.textTertiary)
-                    }
-                }
-
-                Text(label)
-                    .font(Design.Typography.caption2)
-                    .foregroundStyle(Design.Colors.textTertiary)
-            }
-            .frame(maxWidth: .infinity)
-        }
-    }
-}
-
 // MARK: - Help Center View
 
 struct HelpCenterView: View {
     @Environment(\.dismiss) private var dismiss
-
-    private let faqItems = [
-        ("How do I add a new client?", "Go to the Clients tab and tap the + button to add a new client with their contact information."),
-        ("How do I schedule an appointment?", "Navigate to the Calendar tab, select a date, and tap the + button to create a new appointment."),
-        ("How do I share my booking link?", "Go to your Profile tab and tap 'Share' on your booking link card to share it with clients."),
-        ("How do I add a service?", "Go to your Profile tab, scroll to Services section and tap + to add a new service with price and duration."),
-        ("How do I mark an appointment as completed?", "Tap on the appointment to expand it, then tap 'Complete' to mark it as done.")
-    ]
 
     var body: some View {
         NavigationStack {
@@ -403,7 +340,7 @@ struct HelpCenterView: View {
 
                 ScrollView {
                     VStack(spacing: Design.Spacing.m) {
-                        ForEach(faqItems, id: \.0) { question, answer in
+                        ForEach(L.faqItems, id: \.0) { question, answer in
                             GlassCard {
                                 VStack(alignment: .leading, spacing: Design.Spacing.s) {
                                     HStack {
@@ -424,11 +361,11 @@ struct HelpCenterView: View {
                     .padding(Design.Spacing.m)
                 }
             }
-            .navigationTitle("Help Center")
+            .navigationTitle(L.helpCenter)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L.done) { dismiss() }
                 }
             }
         }
@@ -453,10 +390,10 @@ struct ContactUsView: View {
                         .foregroundStyle(Design.Colors.accentPrimary)
 
                     VStack(spacing: Design.Spacing.s) {
-                        Text("Need Help?")
+                        Text(L.needHelp)
                             .font(Design.Typography.title2)
 
-                        Text("We're here to help! Contact us through any of the following channels.")
+                        Text(L.contactDescription)
                             .font(Design.Typography.body)
                             .foregroundStyle(Design.Colors.textSecondary)
                             .multilineTextAlignment(.center)
@@ -464,13 +401,13 @@ struct ContactUsView: View {
                     }
 
                     VStack(spacing: Design.Spacing.m) {
-                        GlassButton(title: "Email Support", icon: "envelope.fill", isFullWidth: true) {
+                        GlassButton(title: L.emailSupport, icon: "envelope.fill", isFullWidth: true) {
                             if let url = InputValidator.safeEmailURL("support@solostyle.app") {
                                 UIApplication.shared.open(url)
                             }
                         }
 
-                        GlassButton(title: "Visit Website", icon: "safari.fill", style: .secondary, isFullWidth: true) {
+                        GlassButton(title: L.visitWebsite, icon: "safari.fill", style: .secondary, isFullWidth: true) {
                             if let url = URL(string: "https://solostyle.app") {
                                 UIApplication.shared.open(url)
                             }
@@ -481,11 +418,11 @@ struct ContactUsView: View {
                     Spacer()
                 }
             }
-            .navigationTitle("Contact Us")
+            .navigationTitle(L.contactUs)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L.done) { dismiss() }
                 }
             }
         }
@@ -505,40 +442,21 @@ struct PrivacyPolicyView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: Design.Spacing.l) {
                         Group {
-                            policySection(
-                                title: "Data Collection",
-                                content: "SoloStyle stores all your data locally on your device. We do not collect or transmit any personal information to external servers."
-                            )
-
-                            policySection(
-                                title: "Local Storage",
-                                content: "All client information, appointments, and settings are stored securely on your device using Apple's SwiftData framework."
-                            )
-
-                            policySection(
-                                title: "No Third-Party Sharing",
-                                content: "We do not share your data with any third parties. Your business information remains private and under your control."
-                            )
-
-                            policySection(
-                                title: "Analytics",
-                                content: "We may collect anonymous usage analytics to improve the app experience. This data cannot be used to identify you."
-                            )
-
-                            policySection(
-                                title: "Contact",
-                                content: "If you have any questions about our privacy practices, please contact us at privacy@solostyle.app"
-                            )
+                            policySection(title: L.ppDataCollection, content: L.ppDataCollectionText)
+                            policySection(title: L.ppLocalStorage, content: L.ppLocalStorageText)
+                            policySection(title: L.ppNoSharing, content: L.ppNoSharingText)
+                            policySection(title: L.ppAnalytics, content: L.ppAnalyticsText)
+                            policySection(title: L.ppContact, content: L.ppContactText)
                         }
                     }
                     .padding(Design.Spacing.m)
                 }
             }
-            .navigationTitle("Privacy Policy")
+            .navigationTitle(L.privacyPolicy)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L.done) { dismiss() }
                 }
             }
         }
@@ -561,11 +479,11 @@ struct PrivacyPolicyView: View {
 
 struct LanguageSelectionView: View {
     @Environment(\.dismiss) private var dismiss
-    @Binding var selectedLanguage: String
+    @ObservedObject private var lang = LanguageManager.shared
 
     private let languages = [
-        ("en", "English", "🇺🇸"),
-        ("ru", "Русский", "🇷🇺")
+        ("ru", "Русский", "🇷🇺"),
+        ("en", "English", "🇺🇸")
     ]
 
     var body: some View {
@@ -577,10 +495,8 @@ struct LanguageSelectionView: View {
                     ForEach(languages, id: \.0) { code, name, flag in
                         Button {
                             HapticManager.selection()
-                            selectedLanguage = code
-                            // Применяем язык
+                            lang.language = code
                             UserDefaults.standard.set([code], forKey: "AppleLanguages")
-                            // synchronize() не нужен в современных версиях iOS - данные сохраняются автоматически
                             dismiss()
                         } label: {
                             HStack {
@@ -593,7 +509,7 @@ struct LanguageSelectionView: View {
 
                                 Spacer()
 
-                                if selectedLanguage == code {
+                                if lang.language == code {
                                     Image(systemName: "checkmark.circle.fill")
                                         .font(.system(size: 22))
                                         .foregroundStyle(Design.Colors.accentPrimary)
@@ -602,20 +518,14 @@ struct LanguageSelectionView: View {
                             .padding(.vertical, Design.Spacing.xs)
                         }
                     }
-
-                    Section {
-                        Text("Restart the app to apply language changes")
-                            .font(Design.Typography.caption1)
-                            .foregroundStyle(Design.Colors.textTertiary)
-                    }
                 }
                 .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Language")
+            .navigationTitle(L.language)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
+                    Button(L.done) {
                         dismiss()
                     }
                 }

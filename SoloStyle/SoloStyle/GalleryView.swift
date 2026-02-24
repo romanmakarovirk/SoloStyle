@@ -90,8 +90,8 @@ struct GalleryView: View {
                 if appointmentsWithPhotos.isEmpty {
                     EmptyStateView(
                         icon: "photo.on.rectangle.angled",
-                        title: "No Photos Yet",
-                        subtitle: "Add before/after photos to your completed appointments to build your portfolio"
+                        title: L.noPhotosYet,
+                        subtitle: L.addPhotosHint
                     )
                 } else {
                     ScrollView {
@@ -112,7 +112,7 @@ struct GalleryView: View {
                     }
                 }
             }
-            .navigationTitle("Portfolio")
+            .navigationTitle(L.portfolio)
             .toolbar {
                 if !appointmentsWithPhotos.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
@@ -121,7 +121,7 @@ struct GalleryView: View {
                                 filterByClient = nil
                             } label: {
                                 HStack {
-                                    Text("All Clients")
+                                    Text(L.allClients)
                                     Spacer()
                                     if filterByClient == nil {
                                         Image(systemName: "checkmark")
@@ -195,7 +195,7 @@ struct GalleryCard: View {
                     VStack {
                         HStack {
                             Spacer()
-                            Text("B/A")
+                            Text(L.beforeAfterBadge)
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 6)
@@ -210,12 +210,12 @@ struct GalleryCard: View {
 
             // Info
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                Text(appointment.client?.name ?? "Client")
+                Text(appointment.client?.name ?? L.client)
                     .font(Design.Typography.caption1)
                     .fontWeight(.medium)
                     .lineLimit(1)
 
-                Text(appointment.service?.name ?? "Service")
+                Text(appointment.service?.name ?? L.service)
                     .font(Design.Typography.caption2)
                     .foregroundStyle(Design.Colors.textSecondary)
                     .lineLimit(1)
@@ -269,10 +269,10 @@ struct GalleryDetailView: View {
                             VStack(spacing: Design.Spacing.m) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                                        Text("Client")
+                                        Text(L.client)
                                             .font(Design.Typography.caption1)
                                             .foregroundStyle(Design.Colors.textTertiary)
-                                        Text(appointment.client?.name ?? "Unknown")
+                                        Text(appointment.client?.name ?? "—")
                                             .font(Design.Typography.headline)
                                     }
 
@@ -286,16 +286,16 @@ struct GalleryDetailView: View {
                                 Divider()
 
                                 HStack {
-                                    InfoColumn(title: "Service", value: appointment.service?.name ?? "Unknown")
-                                    InfoColumn(title: "Date", value: appointment.formattedDate)
-                                    InfoColumn(title: "Price", value: appointment.service?.formattedPrice ?? "$0")
+                                    InfoColumn(title: L.service, value: appointment.service?.name ?? "—")
+                                    InfoColumn(title: L.date, value: appointment.formattedDate)
+                                    InfoColumn(title: L.price, value: appointment.service?.formattedPrice ?? "—")
                                 }
                             }
                         }
                         .padding(.horizontal, Design.Spacing.m)
 
                         // Share button
-                        GlassButton(title: "Share Photo", icon: "square.and.arrow.up", isFullWidth: true) {
+                        GlassButton(title: L.sharePhoto, icon: "square.and.arrow.up", isFullWidth: true) {
                             sharePhoto()
                         }
                         .padding(.horizontal, Design.Spacing.m)
@@ -303,11 +303,11 @@ struct GalleryDetailView: View {
                     .padding(.vertical, Design.Spacing.m)
                 }
             }
-            .navigationTitle("Work Details")
+            .navigationTitle(L.workDetails)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L.done) { dismiss() }
                 }
             }
         }
@@ -317,7 +317,7 @@ struct GalleryDetailView: View {
         guard let path = appointment.afterPhotoPath ?? appointment.beforePhotoPath,
               let image = PhotoStorageManager.loadPhoto(filename: path) else { return }
 
-        let text = "\(appointment.service?.name ?? "Work") for \(appointment.client?.name ?? "client") - SoloStyle Portfolio"
+        let text = L.shareText(service: appointment.service?.name ?? L.service, client: appointment.client?.name ?? L.client)
         let activityVC = UIActivityViewController(activityItems: [image, text], applicationActivities: nil)
 
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
@@ -409,7 +409,7 @@ struct BeforeAfterComparison: View {
                 VStack {
                     Spacer()
                     HStack {
-                        Text("BEFORE")
+                        Text(L.beforeLabel)
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
@@ -419,7 +419,7 @@ struct BeforeAfterComparison: View {
 
                         Spacer()
 
-                        Text("AFTER")
+                        Text(L.afterLabel)
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 8)
@@ -465,7 +465,7 @@ struct AddPhotoView: View {
                     VStack(spacing: Design.Spacing.l) {
                         // Before photo
                         PhotoPickerSection(
-                            title: "Before",
+                            title: L.beforeSection,
                             selectedItem: $beforeItem,
                             image: $beforeImage,
                             existingPath: appointment.beforePhotoPath
@@ -474,7 +474,7 @@ struct AddPhotoView: View {
 
                         // After photo
                         PhotoPickerSection(
-                            title: "After",
+                            title: L.afterSection,
                             selectedItem: $afterItem,
                             image: $afterImage,
                             existingPath: appointment.afterPhotoPath
@@ -482,7 +482,7 @@ struct AddPhotoView: View {
                         .animateOnAppear(delay: 0.2)
 
                         // Save button
-                        GlassButton(title: "Save Photos", icon: "checkmark", isFullWidth: true, isLoading: isSaving) {
+                        GlassButton(title: L.savePhotos, icon: "checkmark", isFullWidth: true, isLoading: isSaving) {
                             savePhotos()
                         }
                         .disabled(beforeImage == nil && afterImage == nil && appointment.beforePhotoPath == nil && appointment.afterPhotoPath == nil)
@@ -492,11 +492,11 @@ struct AddPhotoView: View {
                     .padding(.vertical, Design.Spacing.m)
                 }
             }
-            .navigationTitle("Add Photos")
+            .navigationTitle(L.addPhotos)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
             }
         }
@@ -573,7 +573,7 @@ struct PhotoPickerSection: View {
                                 VStack(spacing: Design.Spacing.s) {
                                     Image(systemName: "camera.fill")
                                         .font(.system(size: 32))
-                                    Text("Tap to add photo")
+                                    Text(L.tapToAddPhoto)
                                         .font(Design.Typography.subheadline)
                                 }
                                 .foregroundStyle(Design.Colors.textTertiary)

@@ -53,7 +53,7 @@ struct AnalyticsView: View {
                     .padding(.bottom, 120)
                 }
             }
-            .navigationTitle("Analytics")
+            .navigationTitle(L.analytics)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -107,7 +107,7 @@ struct AnalyticsView: View {
             VStack(spacing: Design.Spacing.m) {
                 HStack {
                     VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                        Text("Revenue")
+                        Text(L.revenue)
                             .font(Design.Typography.caption1)
                             .foregroundStyle(Design.Colors.textSecondary)
 
@@ -140,7 +140,7 @@ struct AnalyticsView: View {
                         Text("\(filteredAppointments.count)")
                             .font(Design.Typography.title3)
                             .fontWeight(.semibold)
-                        Text("Appointments")
+                        Text(L.appointments)
                             .font(Design.Typography.caption2)
                             .foregroundStyle(Design.Colors.textTertiary)
                     }
@@ -152,7 +152,7 @@ struct AnalyticsView: View {
                         Text(formatCurrency(revenue / Decimal(max(1, filteredAppointments.count))))
                             .font(Design.Typography.title3)
                             .fontWeight(.semibold)
-                        Text("Avg. Ticket")
+                        Text(L.avgTicket)
                             .font(Design.Typography.caption2)
                             .foregroundStyle(Design.Colors.textTertiary)
                     }
@@ -164,7 +164,7 @@ struct AnalyticsView: View {
                         Text("\(completedAppointments.count)")
                             .font(Design.Typography.title3)
                             .fontWeight(.semibold)
-                        Text("Completed")
+                        Text(L.completed)
                             .font(Design.Typography.caption2)
                             .foregroundStyle(Design.Colors.textTertiary)
                     }
@@ -178,11 +178,11 @@ struct AnalyticsView: View {
     private var revenueChart: some View {
         GlassCard {
             VStack(alignment: .leading, spacing: Design.Spacing.m) {
-                Text("Revenue Trend")
+                Text(L.revenueTrend)
                     .font(Design.Typography.headline)
 
                 if chartData.isEmpty {
-                    Text("No data for this period")
+                    Text(L.noDataForPeriod)
                         .font(Design.Typography.subheadline)
                         .foregroundStyle(Design.Colors.textTertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -222,12 +222,12 @@ struct AnalyticsView: View {
 
     private var topServicesSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
-            Text("Top Services")
+            Text(L.topServices)
                 .font(Design.Typography.headline)
 
             if topServices.isEmpty {
                 GlassCard {
-                    Text("No services data yet")
+                    Text(L.noServicesData)
                         .font(Design.Typography.subheadline)
                         .foregroundStyle(Design.Colors.textTertiary)
                         .frame(maxWidth: .infinity)
@@ -245,21 +245,21 @@ struct AnalyticsView: View {
 
     private var clientInsights: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
-            Text("Client Insights")
+            Text(L.clientInsights)
                 .font(Design.Typography.headline)
 
             HStack(spacing: Design.Spacing.s) {
                 InsightCard(
                     icon: "person.badge.plus",
                     value: "\(newClientsCount)",
-                    label: "New Clients",
+                    label: L.newClients,
                     color: .green
                 )
 
                 InsightCard(
                     icon: "arrow.counterclockwise",
                     value: "\(returningClientsCount)",
-                    label: "Returning",
+                    label: L.returning,
                     color: .blue
                 )
 
@@ -277,7 +277,7 @@ struct AnalyticsView: View {
 
     private var appointmentStats: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
-            Text("Appointment Status")
+            Text(L.appointmentStatus)
                 .font(Design.Typography.headline)
 
             GlassCard {
@@ -434,16 +434,17 @@ struct AnalyticsView: View {
     private func formatCurrency(_ amount: Decimal) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        return formatter.string(from: amount as NSDecimalNumber) ?? "$0"
+        formatter.currencyCode = L.currencyCode
+        return formatter.string(from: amount as NSDecimalNumber) ?? (L.currencyCode == "RUB" ? "0 ₽" : "$0")
     }
 
     private func formatCurrencyShort(_ amount: Decimal) -> String {
         let num = NSDecimalNumber(decimal: amount).doubleValue
+        let isRub = L.currencyCode == "RUB"
         if num >= 1000 {
-            return String(format: "$%.1fK", num / 1000)
+            return isRub ? String(format: "%.1fК ₽", num / 1000) : String(format: "$%.1fK", num / 1000)
         }
-        return String(format: "$%.0f", num)
+        return isRub ? String(format: "%.0f ₽", num) : String(format: "$%.0f", num)
     }
 }
 
@@ -454,10 +455,10 @@ enum AnalyticsPeriod: CaseIterable {
 
     var title: String {
         switch self {
-        case .day: return "Day"
-        case .week: return "Week"
-        case .month: return "Month"
-        case .year: return "Year"
+        case .day: return L.periodDay
+        case .week: return L.periodWeek
+        case .month: return L.periodMonth
+        case .year: return L.periodYear
         }
     }
 }
@@ -489,7 +490,7 @@ struct TopServiceRow: View {
                         .font(Design.Typography.headline)
                         .foregroundStyle(Design.Colors.textPrimary)
 
-                    Text("\(count) bookings")
+                    Text(L.bookingsCount(count))
                         .font(Design.Typography.caption1)
                         .foregroundStyle(Design.Colors.textSecondary)
                 }
@@ -506,9 +507,9 @@ struct TopServiceRow: View {
     private func formatCurrency(_ amount: Decimal) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
+        formatter.currencyCode = L.currencyCode
         formatter.maximumFractionDigits = 0
-        return formatter.string(from: amount as NSDecimalNumber) ?? "$0"
+        return formatter.string(from: amount as NSDecimalNumber) ?? (L.currencyCode == "RUB" ? "0 ₽" : "$0")
     }
 }
 
@@ -594,7 +595,7 @@ struct ExportDataView: View {
                 VStack(spacing: Design.Spacing.l) {
                     // Export type selection
                     VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                        Text("What to export?")
+                        Text(L.whatToExport)
                             .font(Design.Typography.headline)
 
                         ForEach(ExportType.allCases, id: \.self) { type in
@@ -609,7 +610,7 @@ struct ExportDataView: View {
                     Spacer()
 
                     // Export button
-                    GlassButton(title: "Export to CSV", icon: "square.and.arrow.up", isFullWidth: true, isLoading: isExporting) {
+                    GlassButton(title: L.exportToCSV, icon: "square.and.arrow.up", isFullWidth: true, isLoading: isExporting) {
                         exportData()
                     }
                     .padding(.horizontal, Design.Spacing.m)
@@ -617,11 +618,11 @@ struct ExportDataView: View {
                 }
                 .padding(.top, Design.Spacing.l)
             }
-            .navigationTitle("Export Data")
+            .navigationTitle(L.exportData)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
             }
             .sheet(isPresented: $showingShareSheet) {
@@ -711,9 +712,9 @@ enum ExportType: CaseIterable {
 
     var title: String {
         switch self {
-        case .clients: return "Clients"
-        case .appointments: return "Appointments"
-        case .revenue: return "Revenue Report"
+        case .clients: return L.exportClients
+        case .appointments: return L.exportAppointments
+        case .revenue: return L.exportRevenue
         }
     }
 
@@ -727,9 +728,9 @@ enum ExportType: CaseIterable {
 
     var description: String {
         switch self {
-        case .clients: return "Export all client data including contact info and visit history"
-        case .appointments: return "Export all appointments with dates, services, and status"
-        case .revenue: return "Export monthly revenue breakdown"
+        case .clients: return L.exportClientsDesc
+        case .appointments: return L.exportAppointmentsDesc
+        case .revenue: return L.exportRevenueDesc
         }
     }
 }

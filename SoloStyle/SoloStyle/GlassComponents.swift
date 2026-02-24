@@ -163,11 +163,11 @@ enum Tab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .calendar: "Calendar"
-        case .clients: "Clients"
-        case .ai: "AI"
-        case .profile: "Profile"
-        case .settings: "Settings"
+        case .calendar: L.tabCalendar
+        case .clients: L.tabClients
+        case .ai: L.tabAI
+        case .profile: L.tabProfile
+        case .settings: L.tabSettings
         }
     }
 
@@ -278,8 +278,10 @@ struct TabBarItem: View {
                 }
 
                 Text(tab.title)
-                    .font(Design.Typography.caption1)
+                    .font(.system(size: 10))
                     .fontWeight(isSelected ? .semibold : .regular)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .foregroundStyle(
                 tab.isAI && isSelected

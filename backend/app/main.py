@@ -5,7 +5,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import health, masters, search, services
+from app.routers import health, masters, search, services, voice_crm
 
 app = FastAPI(title="SoloStyle API", version="0.1.0")
 
@@ -21,6 +21,7 @@ app.include_router(health.router, tags=["Health"])
 app.include_router(masters.router, prefix="/api/v1", tags=["Masters"])
 app.include_router(services.router, prefix="/api/v1", tags=["Services"])
 app.include_router(search.router, prefix="/api/v1", tags=["Search"])
+app.include_router(voice_crm.router, prefix="/api/v1", tags=["Voice CRM"])
 
 
 @app.get("/")

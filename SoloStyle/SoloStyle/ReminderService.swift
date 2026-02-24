@@ -22,11 +22,11 @@ enum ReminderTemplate: CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .dayBefore: return "Day Before"
-        case .hourBefore: return "Hour Before"
-        case .confirmation: return "Confirmation"
-        case .thankYou: return "Thank You"
-        case .missYou: return "We Miss You"
+        case .dayBefore: return L.templateDayBefore
+        case .hourBefore: return L.templateHourBefore
+        case .confirmation: return L.templateConfirmation
+        case .thankYou: return L.templateThankYou
+        case .missYou: return L.templateMissYou
         }
     }
 
@@ -55,23 +55,23 @@ enum ReminderTemplate: CaseIterable, Identifiable {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         let dateStr = formatter.string(from: date)
-        let business = businessName ?? "our salon"
+        let business = businessName ?? L.ourSalon
 
         switch self {
         case .dayBefore:
-            return "Hi \(clientName)! Just a reminder about your \(serviceName) appointment tomorrow at \(dateStr). See you at \(business)!"
+            return L.reminderDayBefore(client: clientName, service: serviceName, date: dateStr, business: business)
 
         case .hourBefore:
-            return "Hi \(clientName)! Your \(serviceName) appointment is in 1 hour. We're looking forward to seeing you!"
+            return L.reminderHourBefore(client: clientName, service: serviceName)
 
         case .confirmation:
-            return "Hi \(clientName)! Your \(serviceName) appointment on \(dateStr) is confirmed. Reply YES to confirm or call us to reschedule."
+            return L.reminderConfirmation(client: clientName, service: serviceName, date: dateStr)
 
         case .thankYou:
-            return "Thank you for visiting \(business), \(clientName)! We hope you loved your \(serviceName). See you next time!"
+            return L.reminderThankYou(client: clientName, service: serviceName, business: business)
 
         case .missYou:
-            return "Hi \(clientName)! We miss you at \(business)! It's been a while since your last visit. Book your next \(serviceName) today!"
+            return L.reminderMissYou(client: clientName, service: serviceName, business: business)
         }
     }
 }
@@ -126,11 +126,11 @@ struct SendReminderView: View {
                     .padding(Design.Spacing.m)
                 }
             }
-            .navigationTitle("Send Reminder")
+            .navigationTitle(L.sendReminder)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
             }
         }
@@ -163,7 +163,7 @@ struct SendReminderView: View {
 
     private var templateSelection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
-            Text("Message Template")
+            Text(L.messageTemplate)
                 .font(Design.Typography.headline)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -190,7 +190,7 @@ struct SendReminderView: View {
                     } label: {
                         HStack(spacing: Design.Spacing.xs) {
                             Image(systemName: "pencil")
-                            Text("Custom")
+                            Text(L.custom)
                         }
                         .font(Design.Typography.subheadline)
                         .foregroundStyle(useCustomMessage ? .white : Design.Colors.textSecondary)
@@ -209,18 +209,18 @@ struct SendReminderView: View {
     private var messagePreview: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
             HStack {
-                Text("Message Preview")
+                Text(L.messagePreview)
                     .font(Design.Typography.headline)
 
                 Spacer()
 
-                Text("\(currentMessage.count) chars")
+                Text("\(currentMessage.count) \(L.chars)")
                     .font(Design.Typography.caption2)
                     .foregroundStyle(Design.Colors.textTertiary)
             }
 
             if useCustomMessage {
-                TextField("Type your message...", text: $customMessage, axis: .vertical)
+                TextField(L.typeYourMessage, text: $customMessage, axis: .vertical)
                     .lineLimit(4...8)
                     .padding(Design.Spacing.m)
                     .background(
@@ -246,17 +246,17 @@ struct SendReminderView: View {
             if let phone = appointment.client?.phone {
                 HStack(spacing: Design.Spacing.m) {
                     // SMS
-                    GlassButton(title: "SMS", icon: "message.fill", style: .secondary, isFullWidth: true) {
+                    GlassButton(title: L.sms, icon: "message.fill", style: .secondary, isFullWidth: true) {
                         sendSMS(to: phone)
                     }
 
                     // WhatsApp
-                    GlassButton(title: "WhatsApp", icon: "bubble.left.fill", isFullWidth: true) {
+                    GlassButton(title: L.whatsapp, icon: "bubble.left.fill", isFullWidth: true) {
                         sendWhatsApp(to: phone)
                     }
                 }
             } else {
-                Text("No phone number available")
+                Text(L.noPhoneNumber)
                     .font(Design.Typography.subheadline)
                     .foregroundStyle(Design.Colors.textTertiary)
                     .frame(maxWidth: .infinity)
@@ -268,7 +268,7 @@ struct SendReminderView: View {
             }
 
             // Copy to clipboard
-            GlassButton(title: "Copy Message", icon: "doc.on.doc", style: .secondary, isFullWidth: true) {
+            GlassButton(title: L.copyMessage, icon: "doc.on.doc", style: .secondary, isFullWidth: true) {
                 UIPasteboard.general.string = currentMessage
                 HapticManager.notification(.success)
             }
@@ -351,31 +351,31 @@ struct UpcomingRemindersView: View {
                 if upcomingAppointments.isEmpty {
                     EmptyStateView(
                         icon: "bell.slash",
-                        title: "No Upcoming Appointments",
-                        subtitle: "Schedule appointments to send reminders"
+                        title: L.noUpcomingAppointments,
+                        subtitle: L.scheduleToRemind
                     )
                 } else {
                     ScrollView {
                         VStack(spacing: Design.Spacing.l) {
                             // Tomorrow section
                             if !tomorrowAppointments.isEmpty {
-                                reminderSection(title: "Tomorrow", appointments: tomorrowAppointments, urgent: true)
+                                reminderSection(title: L.tomorrow, appointments: tomorrowAppointments, urgent: true)
                             }
 
                             // Needs reminder section
                             if !needsReminder.isEmpty {
-                                reminderSection(title: "Needs Reminder", appointments: needsReminder, urgent: false)
+                                reminderSection(title: L.needsReminder, appointments: needsReminder, urgent: false)
                             }
 
                             // All upcoming
-                            reminderSection(title: "All Upcoming", appointments: upcomingAppointments, urgent: false)
+                            reminderSection(title: L.allUpcoming, appointments: upcomingAppointments, urgent: false)
                         }
                         .padding(Design.Spacing.m)
                         .padding(.bottom, 100)
                     }
                 }
             }
-            .navigationTitle("Reminders")
+            .navigationTitle(L.reminders)
             .sheet(item: $selectedAppointment) { appointment in
                 SendReminderView(appointment: appointment)
             }
@@ -427,7 +427,7 @@ struct ReminderAppointmentCard: View {
                         Image(systemName: "calendar")
                             .font(.system(size: 12))
                         Text(appointment.date, style: .date)
-                        Text("at")
+                        Text(L.atTime)
                         Text(appointment.date, style: .time)
                     }
                     .font(Design.Typography.caption1)
@@ -441,7 +441,7 @@ struct ReminderAppointmentCard: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 24))
                             .foregroundStyle(Design.Colors.accentSuccess)
-                        Text("Sent")
+                        Text(L.sent)
                             .font(Design.Typography.caption2)
                             .foregroundStyle(Design.Colors.accentSuccess)
                     } else {
@@ -453,7 +453,7 @@ struct ReminderAppointmentCard: View {
                                 .font(.system(size: 24))
                                 .foregroundStyle(Design.Colors.accentPrimary)
                         }
-                        Text("Send")
+                        Text(L.sendAction)
                             .font(Design.Typography.caption2)
                             .foregroundStyle(Design.Colors.accentPrimary)
                     }
@@ -493,8 +493,8 @@ final class NotificationManager {
         guard let client = appointment.client else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Upcoming Appointment"
-        content.body = "\(client.name) — \(appointment.service?.name ?? "Appointment") in 1 hour"
+        content.title = L.upcomingAppointmentNotif
+        content.body = L.appointmentInOneHour(client: client.name, service: appointment.service?.name ?? L.appointments)
         content.sound = .default
         content.categoryIdentifier = "APPOINTMENT_REMINDER"
 

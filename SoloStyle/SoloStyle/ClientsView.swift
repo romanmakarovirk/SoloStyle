@@ -75,7 +75,7 @@ struct ClientsView: View {
                 VStack(spacing: 0) {
                     // Search bar at top - always visible when we have clients
                     if !clients.isEmpty {
-                        GlassSearchBar(text: $searchText, placeholder: "Search by name, phone, or email")
+                        GlassSearchBar(text: $searchText, placeholder: L.searchByNamePhoneEmail)
                             .padding(.horizontal, Design.Spacing.m)
                             .padding(.top, Design.Spacing.s)
 
@@ -94,9 +94,9 @@ struct ClientsView: View {
                         Spacer()
                         EmptyStateView(
                             icon: "person.2.fill",
-                            title: "No Clients Yet",
-                            subtitle: "Add your first client to get started",
-                            actionTitle: "Add Client",
+                            title: L.noClientsYet,
+                            subtitle: L.addFirstClient,
+                            actionTitle: L.addClient,
                             action: { showingAddClient = true }
                         )
                         Spacer()
@@ -141,7 +141,7 @@ struct ClientsView: View {
                     }
                 }
             }
-            .navigationTitle("Clients")
+            .navigationTitle(L.clients)
             .onChange(of: searchText) { _, newValue in
                 // Cancel previous task to avoid race conditions
                 searchTask?.cancel()
@@ -163,16 +163,16 @@ struct ClientsView: View {
             .onDisappear {
                 searchTask?.cancel()
             }
-            .alert("Удалить клиента?", isPresented: $showingDeleteConfirmation) {
-                Button("Отмена", role: .cancel) { clientToDelete = nil }
-                Button("Удалить", role: .destructive) {
+            .alert(L.deleteClient, isPresented: $showingDeleteConfirmation) {
+                Button(L.cancel, role: .cancel) { clientToDelete = nil }
+                Button(L.delete, role: .destructive) {
                     if let client = clientToDelete {
                         deleteClient(client)
                     }
                     clientToDelete = nil
                 }
             } message: {
-                Text("Это действие нельзя отменить. Все данные клиента будут удалены.")
+                Text(L.deleteClientMessage)
             }
             .sheet(isPresented: $showingAddClient) {
                 AddClientView()
@@ -183,7 +183,7 @@ struct ClientsView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
-                        Section("Sort By") {
+                        Section(L.sortBy) {
                             ForEach(SortOrder.allCases, id: \.self) { order in
                                 Button {
                                     withAnimation { sortOrder = order }
@@ -231,8 +231,8 @@ struct ClientsView: View {
 
     private var statsBar: some View {
         HStack(spacing: Design.Spacing.m) {
-            StatPill(value: clients.count, label: "Total")
-            StatPill(value: filteredClients.count, label: "Showing")
+            StatPill(value: clients.count, label: L.total)
+            StatPill(value: filteredClients.count, label: L.showing)
 
             Spacer()
 
@@ -243,7 +243,7 @@ struct ClientsView: View {
                         debouncedSearchText = ""
                     }
                 } label: {
-                    Label("Clear", systemImage: "xmark.circle.fill")
+                    Label(L.clear, systemImage: "xmark.circle.fill")
                         .font(Design.Typography.caption1)
                         .foregroundStyle(Design.Colors.textSecondary)
                 }
@@ -257,11 +257,11 @@ struct ClientsView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(Design.Colors.textTertiary)
 
-            Text("No results for \"\(debouncedSearchText)\"")
+            Text(L.noResultsFor(debouncedSearchText))
                 .font(Design.Typography.headline)
                 .foregroundStyle(Design.Colors.textSecondary)
 
-            Text("Try a different search term")
+            Text(L.tryDifferentSearch)
                 .font(Design.Typography.caption1)
                 .foregroundStyle(Design.Colors.textTertiary)
         }
@@ -302,10 +302,10 @@ enum ClientFilter: CaseIterable {
 
     var title: String {
         switch self {
-        case .all: return "All"
-        case .recent: return "Recent"
-        case .frequent: return "Frequent"
-        case .new: return "New"
+        case .all: return L.filterAll
+        case .recent: return L.filterRecent
+        case .frequent: return L.filterFrequent
+        case .new: return L.filterNew
         }
     }
 
@@ -324,9 +324,9 @@ enum SortOrder: CaseIterable {
 
     var title: String {
         switch self {
-        case .name: return "Name"
-        case .visits: return "Most Visits"
-        case .recent: return "Recently Active"
+        case .name: return L.sortName
+        case .visits: return L.sortMostVisits
+        case .recent: return L.sortRecentlyActive
         }
     }
 }
@@ -457,7 +457,7 @@ struct ClientCard: View {
                                 .font(Design.Typography.caption2)
                                 .foregroundStyle(Design.Colors.textTertiary)
                         } else {
-                            Text("New")
+                            Text(L.newLabel)
                                 .font(Design.Typography.caption2)
                                 .foregroundStyle(Design.Colors.accentSuccess)
                         }
@@ -614,7 +614,7 @@ struct ClientDetailView: View {
                         GlassCard {
                             VStack(spacing: Design.Spacing.m) {
                                 if let phone = client.phone {
-                                    ContactRow(icon: "phone.fill", title: "Phone", value: phone) {
+                                    ContactRow(icon: "phone.fill", title: L.phone, value: phone) {
                                         if let url = InputValidator.safePhoneURL(phone) {
                                             UIApplication.shared.open(url)
                                         }
@@ -625,7 +625,7 @@ struct ClientDetailView: View {
                                     if client.phone != nil {
                                         Divider()
                                     }
-                                    ContactRow(icon: "envelope.fill", title: "Email", value: email) {
+                                    ContactRow(icon: "envelope.fill", title: L.email, value: email) {
                                         if let url = InputValidator.safeEmailURL(email) {
                                             UIApplication.shared.open(url)
                                         }
@@ -633,7 +633,7 @@ struct ClientDetailView: View {
                                 }
 
                                 if client.phone == nil && client.email == nil {
-                                    Text("No contact info")
+                                    Text(L.noContactInfo)
                                         .font(Design.Typography.subheadline)
                                         .foregroundStyle(Design.Colors.textTertiary)
                                 }
@@ -647,19 +647,19 @@ struct ClientDetailView: View {
                             StatCard(
                                 icon: "checkmark.circle.fill",
                                 value: "\(client.completedVisits)",
-                                label: "Completed"
+                                label: L.completed
                             )
 
                             StatCard(
                                 icon: "clock",
                                 value: lastVisitText,
-                                label: "Last Visit"
+                                label: L.lastVisit
                             )
 
                             StatCard(
                                 icon: "dollarsign.circle.fill",
                                 value: client.formattedTotalSpent,
-                                label: "Total Spent"
+                                label: L.totalSpent
                             )
                         }
                         .padding(.horizontal, Design.Spacing.m)
@@ -668,7 +668,7 @@ struct ClientDetailView: View {
                         // Recent appointments
                         if !client.appointments.isEmpty {
                             VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                                Text("Recent Appointments")
+                                Text(L.recentAppointments)
                                     .font(Design.Typography.headline)
                                     .padding(.horizontal, Design.Spacing.m)
 
@@ -683,13 +683,13 @@ struct ClientDetailView: View {
                         // Quick actions
                         HStack(spacing: Design.Spacing.m) {
                             if let phone = client.phone {
-                                QuickActionButton(icon: "phone.fill", title: "Call", color: .green) {
+                                QuickActionButton(icon: "phone.fill", title: L.call, color: .green) {
                                     if let url = InputValidator.safePhoneURL(phone) {
                                         UIApplication.shared.open(url)
                                     }
                                 }
 
-                                QuickActionButton(icon: "message.fill", title: "Message", color: .blue) {
+                                QuickActionButton(icon: "message.fill", title: L.message, color: .blue) {
                                     if let url = InputValidator.safeSMSURL(phone) {
                                         UIApplication.shared.open(url)
                                     }
@@ -697,7 +697,7 @@ struct ClientDetailView: View {
                             }
 
                             if let email = client.email {
-                                QuickActionButton(icon: "envelope.fill", title: "Email", color: .orange) {
+                                QuickActionButton(icon: "envelope.fill", title: L.email, color: .orange) {
                                     if let url = InputValidator.safeEmailURL(email) {
                                         UIApplication.shared.open(url)
                                     }
@@ -710,11 +710,11 @@ struct ClientDetailView: View {
                     .padding(.bottom, Design.Spacing.xxl)
                 }
             }
-            .navigationTitle("Client Details")
+            .navigationTitle(L.clientDetails)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button(L.done) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -736,7 +736,7 @@ struct ClientDetailView: View {
             formatter.unitsStyle = .short
             return formatter.localizedString(for: lastDate, relativeTo: Date())
         }
-        return "Never"
+        return L.never
     }
 }
 
@@ -750,7 +750,7 @@ struct LoyaltyProgressCard: View {
             VStack(spacing: Design.Spacing.m) {
                 HStack {
                     VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                        Text("Loyalty Status")
+                        Text(L.loyaltyStatus)
                             .font(Design.Typography.caption1)
                             .foregroundStyle(Design.Colors.textSecondary)
 
@@ -766,16 +766,16 @@ struct LoyaltyProgressCard: View {
                     Spacer()
 
                     VStack(alignment: .trailing, spacing: Design.Spacing.xxs) {
-                        Text("\(client.completedVisits) visits")
+                        Text("\(client.completedVisits) \(L.visits)")
                             .font(Design.Typography.headline)
                             .foregroundStyle(Design.Colors.textPrimary)
 
                         if let toNext = client.visitsToNextTier {
-                            Text("\(toNext) to next tier")
+                            Text(L.toNextTier(toNext))
                                 .font(Design.Typography.caption1)
                                 .foregroundStyle(Design.Colors.textSecondary)
                         } else {
-                            Text("Max tier!")
+                            Text(L.maxTier)
                                 .font(Design.Typography.caption1)
                                 .foregroundStyle(client.loyaltyTier.color)
                         }
@@ -1008,22 +1008,22 @@ struct EditClientView: View {
                             .padding(.top, Design.Spacing.l)
 
                         VStack(spacing: Design.Spacing.m) {
-                            FormField(title: "Name", placeholder: "Client name", text: $name, icon: "person")
-                            FormField(title: "Phone", placeholder: "+1 234 567 8900", text: $phone, icon: "phone", keyboardType: .phonePad)
-                            FormField(title: "Email", placeholder: "email@example.com", text: $email, icon: "envelope", keyboardType: .emailAddress)
+                            FormField(title: L.name, placeholder: L.clientName, text: $name, icon: "person")
+                            FormField(title: L.phone, placeholder: L.phonePlaceholder, text: $phone, icon: "phone", keyboardType: .phonePad)
+                            FormField(title: L.email, placeholder: L.emailPlaceholder, text: $email, icon: "envelope", keyboardType: .emailAddress)
                         }
                         .padding(.horizontal, Design.Spacing.m)
                     }
                 }
             }
-            .navigationTitle("Edit Client")
+            .navigationTitle(L.editClient)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    GlassButton(title: "Save", style: .primary) {
+                    GlassButton(title: L.save, style: .primary) {
                         saveChanges()
                     }
                     .disabled(name.isEmpty)
@@ -1079,13 +1079,13 @@ struct AddClientView: View {
                             .animateOnAppear(delay: 0.1)
 
                         VStack(spacing: Design.Spacing.m) {
-                            FormField(title: "Name", placeholder: "Client name", text: $name, icon: "person")
+                            FormField(title: L.name, placeholder: L.clientName, text: $name, icon: "person")
                                 .animateOnAppear(delay: 0.2)
 
-                            FormField(title: "Phone", placeholder: "+1 234 567 8900", text: $phone, icon: "phone", keyboardType: .phonePad)
+                            FormField(title: L.phone, placeholder: L.phonePlaceholder, text: $phone, icon: "phone", keyboardType: .phonePad)
                                 .animateOnAppear(delay: 0.3)
 
-                            FormField(title: "Email", placeholder: "email@example.com", text: $email, icon: "envelope", keyboardType: .emailAddress)
+                            FormField(title: L.email, placeholder: L.emailPlaceholder, text: $email, icon: "envelope", keyboardType: .emailAddress)
                                 .animateOnAppear(delay: 0.4)
                         }
                         .padding(.horizontal, Design.Spacing.m)
@@ -1094,7 +1094,7 @@ struct AddClientView: View {
                         if !name.isEmpty && phone.isEmpty && email.isEmpty {
                             TipCard(
                                 icon: "lightbulb.fill",
-                                text: "Adding contact info helps you reach clients for appointment reminders"
+                                text: L.contactInfoTip
                             )
                             .padding(.horizontal, Design.Spacing.m)
                             .transition(.scale.combined(with: .opacity))
@@ -1102,14 +1102,14 @@ struct AddClientView: View {
                     }
                 }
             }
-            .navigationTitle("New Client")
+            .navigationTitle(L.newClient)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    GlassButton(title: "Save", style: .primary, isLoading: isLoading) {
+                    GlassButton(title: L.save, style: .primary, isLoading: isLoading) {
                         saveClient()
                     }
                     .disabled(name.isEmpty)

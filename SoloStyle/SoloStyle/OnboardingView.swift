@@ -59,7 +59,7 @@ struct OnboardingView: View {
                 // Navigation
                 HStack(spacing: Design.Spacing.m) {
                     if currentStep > 0 {
-                        GlassButton(title: "Back", icon: "chevron.left", style: .secondary) {
+                        GlassButton(title: L.back, icon: "chevron.left", style: .secondary) {
                             HapticManager.impact(.light)
                             withAnimation(Design.Animation.smooth) { currentStep -= 1 }
                         }
@@ -70,7 +70,7 @@ struct OnboardingView: View {
 
                     if currentStep < totalSteps - 1 {
                         GlassButton(
-                            title: currentStep == 0 ? "Get Started" : "Continue",
+                            title: currentStep == 0 ? L.getStarted : L.continueText,
                             icon: "arrow.right"
                         ) {
                             HapticManager.impact(.medium)
@@ -78,7 +78,7 @@ struct OnboardingView: View {
                         }
                         .disabled(currentStep == 1 && name.isEmpty)
                     } else {
-                        GlassButton(title: "Start Using SoloStyle", icon: "sparkles") {
+                        GlassButton(title: L.startUsingSoloStyle, icon: "sparkles") {
                             HapticManager.notification(.success)
                             confettiTrigger = true
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -113,12 +113,12 @@ struct OnboardingView: View {
                 .animateOnAppear(delay: 0.1)
 
             VStack(spacing: Design.Spacing.m) {
-                Text("Welcome to SoloStyle")
+                Text(L.welcomeTitle)
                     .font(Design.Typography.largeTitle)
                     .multilineTextAlignment(.center)
                     .animateOnAppear(delay: 0.2)
 
-                Text("The simplest way to manage your appointments")
+                Text(L.welcomeSubtitle)
                     .font(Design.Typography.body)
                     .foregroundStyle(Design.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -126,9 +126,9 @@ struct OnboardingView: View {
             }
 
             VStack(alignment: .leading, spacing: Design.Spacing.m) {
-                AnimatedFeatureItem(icon: "calendar", text: "Manage appointments", delay: 0.4)
-                AnimatedFeatureItem(icon: "bell.badge", text: "Send reminders", delay: 0.5)
-                AnimatedFeatureItem(icon: "link", text: "Share booking link", delay: 0.6)
+                AnimatedFeatureItem(icon: "calendar", text: L.featureManage, delay: 0.4)
+                AnimatedFeatureItem(icon: "bell.badge", text: L.featureReminders, delay: 0.5)
+                AnimatedFeatureItem(icon: "link", text: L.featureBooking, delay: 0.6)
             }
             .padding(.horizontal, Design.Spacing.xl)
 
@@ -156,11 +156,11 @@ struct OnboardingView: View {
                     }
                     .animateOnAppear(delay: 0.1)
 
-                    Text("Create Your Profile")
+                    Text(L.createYourProfile)
                         .font(Design.Typography.title2)
                         .animateOnAppear(delay: 0.2)
 
-                    Text("Tell us about yourself")
+                    Text(L.tellAboutYourself)
                         .font(Design.Typography.subheadline)
                         .foregroundStyle(Design.Colors.textSecondary)
                         .animateOnAppear(delay: 0.3)
@@ -172,10 +172,10 @@ struct OnboardingView: View {
                     .animateOnAppear(delay: 0.4)
 
                 VStack(spacing: Design.Spacing.m) {
-                    FormField(title: "Your Name", placeholder: "John Doe", text: $name, icon: "person")
+                    FormField(title: L.yourName, placeholder: L.namePlaceholder, text: $name, icon: "person")
                         .animateOnAppear(delay: 0.5)
 
-                    FormField(title: "Business Name (optional)", placeholder: "John's Studio", text: $businessName, icon: "building.2")
+                    FormField(title: L.businessNameOptional, placeholder: L.businessPlaceholder, text: $businessName, icon: "building.2")
                         .animateOnAppear(delay: 0.6)
                 }
                 .padding(.horizontal, Design.Spacing.m)
@@ -184,7 +184,7 @@ struct OnboardingView: View {
                 if !name.isEmpty {
                     TipCard(
                         icon: "lightbulb.fill",
-                        text: "Great! Your profile will be visible to clients when they book appointments."
+                        text: L.profileTip
                     )
                     .padding(.horizontal, Design.Spacing.m)
                     .transition(.scale.combined(with: .opacity))
@@ -204,11 +204,11 @@ struct OnboardingView: View {
                 .animateOnAppear(delay: 0.1)
 
             VStack(spacing: Design.Spacing.m) {
-                Text("You're All Set!")
+                Text(L.allSet)
                     .font(Design.Typography.largeTitle)
                     .animateOnAppear(delay: 0.3)
 
-                Text("Start managing your appointments and share your booking link with clients.")
+                Text(L.allSetSubtitle)
                     .font(Design.Typography.body)
                     .foregroundStyle(Design.Colors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -219,12 +219,12 @@ struct OnboardingView: View {
             // Summary card
             GlassCard {
                 VStack(spacing: Design.Spacing.m) {
-                    ProfileSummaryRow(icon: "person.fill", label: "Name", value: name)
+                    ProfileSummaryRow(icon: "person.fill", label: L.name, value: name)
 
                     if !businessName.isEmpty {
                         Divider()
                             .background(Design.Colors.glassTint)
-                        ProfileSummaryRow(icon: "building.2.fill", label: "Business", value: businessName)
+                        ProfileSummaryRow(icon: "building.2.fill", label: L.businessName, value: businessName)
                     }
                 }
             }
@@ -441,14 +441,14 @@ struct ProfileSummaryRow: View {
 struct QuickStartTips: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
-            Text("Quick Start")
+            Text(L.quickStart)
                 .font(Design.Typography.caption1)
                 .foregroundStyle(Design.Colors.textTertiary)
 
             HStack(spacing: Design.Spacing.s) {
-                QuickTipChip(icon: "plus.circle", text: "Add services")
-                QuickTipChip(icon: "person.badge.plus", text: "Add clients")
-                QuickTipChip(icon: "link", text: "Share link")
+                QuickTipChip(icon: "plus.circle", text: L.tipAddServices)
+                QuickTipChip(icon: "person.badge.plus", text: L.tipAddClients)
+                QuickTipChip(icon: "link", text: L.tipShareLink)
             }
         }
     }

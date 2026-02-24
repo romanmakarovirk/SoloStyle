@@ -37,6 +37,8 @@ struct MasterResult: Codable, Sendable, Identifiable {
     let experience: Int
     let rating: Double
     let distanceKm: Double
+    let masterLat: Double?
+    let masterLon: Double?
 
     var id: String { serviceId }
 
@@ -57,6 +59,38 @@ struct MasterResult: Codable, Sendable, Identifiable {
         case masterName = "master_name"
         case experience, rating
         case distanceKm = "distance_km"
+        case masterLat = "master_lat"
+        case masterLon = "master_lon"
+    }
+}
+
+// MARK: - Voice CRM Models
+
+struct VoiceCRMRequest: Codable, Sendable {
+    let text: String
+    let timezone: String
+}
+
+struct VoiceCRMResponse: Codable, Sendable {
+    let success: Bool
+    let entities: ParsedEntity
+    let summary: String
+}
+
+struct ParsedEntity: Codable, Sendable {
+    let clientName: String?
+    let phone: String?
+    let serviceName: String?
+    let date: String?
+    let time: String?
+    let price: Double?
+    let notes: String?
+
+    enum CodingKeys: String, CodingKey {
+        case clientName = "client_name"
+        case phone
+        case serviceName = "service_name"
+        case date, time, price, notes
     }
 }
 
@@ -106,6 +140,52 @@ actor NetworkManager {
         config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
         self.decoder = JSONDecoder()
+    }
+
+    /// Parse voice input into CRM entities via backend
+    func parseVoiceCRM(
+        text: String,
+        timezone: String = "Asia/Irkutsk"
+    ) async throws -> VoiceCRMResponse {
+        let request = VoiceCRMRequest(text: text, timezone: timezone)
+
+        guard let url = URL(string: baseURL + "/voice-crm") else {
+            throw NetworkError.invalidURL
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let data: Data
+        let response: URLResponse
+
+        do {
+            (data, response) = try await session.data(for: urlRequest)
+        } catch let error as URLError where error.code == .timedOut {
+            throw NetworkError.timeout
+        } catch let error as URLError where error.code == .cannotConnectToHost
+                                         || error.code == .notConnectedToInternet
+                                         || error.code == .networkConnectionLost {
+            throw NetworkError.noConnection
+        } catch {
+            throw NetworkError.unknown(error.localizedDescription)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw NetworkError.unknown("Invalid response type")
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError(httpResponse.statusCode)
+        }
+
+        do {
+            return try decoder.decode(VoiceCRMResponse.self, from: data)
+        } catch {
+            throw NetworkError.decodingError
+        }
     }
 
     /// Search for masters by query and user location

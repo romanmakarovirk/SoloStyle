@@ -17,6 +17,11 @@ struct CalendarView: View {
     @State private var isAnimatingDate = false
     @State private var showingDeleteConfirmation = false
     @State private var appointmentToDelete: Appointment?
+    @State private var showingVoiceCRM = false
+
+    private var todayAppointments: [Appointment] {
+        appointments.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -24,63 +29,96 @@ struct CalendarView: View {
                 Design.Colors.backgroundPrimary.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Animated Date Header
+                    // Date header — large, left-aligned
                     dateHeader
                         .animateOnAppear()
 
-                    // Week Strip
+                    // Week strip
                     weekStrip
-                        .animateOnAppear(delay: 0.1)
+                        .animateOnAppear(delay: 0.05)
 
-                    // Appointments
+                    // Summary pill
+                    if !todayAppointments.isEmpty {
+                        summaryPill
+                            .padding(.top, Design.Spacing.s)
+                            .animateOnAppear(delay: 0.1)
+                    }
+
+                    // Appointments list
                     ScrollView {
                         LazyVStack(spacing: Design.Spacing.s) {
-                            let todayAppointments = appointments.filter {
-                                Calendar.current.isDate($0.date, inSameDayAs: selectedDate)
-                            }
-
                             if todayAppointments.isEmpty {
-                                EmptyStateView(
-                                    icon: "calendar.badge.plus",
-                                    title: "No appointments",
-                                    subtitle: "Your schedule is clear for this day",
-                                    actionTitle: "Add Appointment"
-                                ) {
-                                    showingAddAppointment = true
-                                }
-                                .animateOnAppear(delay: 0.2)
+                                emptyState
+                                    .animateOnAppear(delay: 0.15)
                             } else {
                                 ForEach(Array(todayAppointments.enumerated()), id: \.element.id) { index, appointment in
                                     AppointmentRow(appointment: appointment, onDelete: {
                                         appointmentToDelete = appointment
                                         showingDeleteConfirmation = true
                                     })
-                                    .animateOnAppear(delay: 0.1 * Double(index))
+                                    .animateOnAppear(delay: 0.05 * Double(index))
                                 }
                             }
                         }
-                        .padding(Design.Spacing.m)
-                        .padding(.bottom, 120)
+                        .padding(.horizontal, Design.Spacing.m)
+                        .padding(.top, Design.Spacing.s)
+                        .padding(.bottom, 130)
                     }
                 }
 
-                // FAB - raised higher to avoid tab bar
+                // FABs
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
-                        GlassFAB(icon: "plus") {
-                            showingAddAppointment = true
+                        VStack(spacing: Design.Spacing.s) {
+                            // Mic FAB — Voice CRM
+                            Button {
+                                HapticManager.impact(.medium)
+                                showingVoiceCRM = true
+                            } label: {
+                                Image(systemName: "mic.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 46, height: 46)
+                                    .background(
+                                        Circle()
+                                            .fill(Design.Colors.accentSuccess)
+                                            .shadow(color: Design.Colors.accentSuccess.opacity(0.35), radius: 10, y: 4)
+                                    )
+                                    .glassEffect(.regular.tint(Color.green.opacity(0.3)), in: .circle)
+                            }
+
+                            // Plus FAB — manual add
+                            Button {
+                                HapticManager.impact(.medium)
+                                showingAddAppointment = true
+                            } label: {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 56, height: 56)
+                                    .background(
+                                        Circle()
+                                            .fill(Design.Colors.accentPrimary)
+                                            .shadow(color: Design.Colors.accentPrimary.opacity(0.35), radius: 12, y: 6)
+                                    )
+                                    .glassEffect(.regular.tint(Color.blue.opacity(0.3)), in: .circle)
+                            }
                         }
                         .padding(.trailing, Design.Spacing.l)
-                        .padding(.bottom, 140)
+                        .padding(.bottom, 130)
                     }
                 }
             }
-            .navigationTitle("Calendar")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarHidden(true)
             .sheet(isPresented: $showingAddAppointment) {
                 AddAppointmentView(selectedDate: selectedDate)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingVoiceCRM) {
+                VoiceCRMView()
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
@@ -103,43 +141,46 @@ struct CalendarView: View {
     // MARK: - Date Header
 
     private var dateHeader: some View {
-        HStack {
-            // Previous button
-            GlassIconButton(icon: "chevron.left") {
-                moveDate(by: -1)
-            }
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            Text(selectedDate.formatted(.dateTime.weekday(.wide)).capitalized)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Design.Colors.accentPrimary)
 
-            Spacer()
-
-            // Date display with animation
-            VStack(spacing: Design.Spacing.xxs) {
-                Text(selectedDate.formatted(.dateTime.weekday(.wide)))
-                    .font(Design.Typography.caption1)
-                    .foregroundStyle(Design.Colors.textSecondary)
-
-                Text(selectedDate.formatted(.dateTime.day().month(.wide)))
-                    .font(Design.Typography.title2)
+            HStack(alignment: .firstTextBaseline) {
+                Text(selectedDate.formatted(.dateTime.day()))
+                    .font(.system(size: 38, weight: .bold, design: .rounded))
                     .foregroundStyle(Design.Colors.textPrimary)
                     .contentTransition(.numericText())
-            }
-            .scaleEffect(isAnimatingDate ? 0.95 : 1.0)
-            .opacity(isAnimatingDate ? 0.7 : 1.0)
-            .onTapGesture {
-                HapticManager.impact(.light)
-                withAnimation(Design.Animation.smooth) {
-                    selectedDate = Date()
+
+                Text(selectedDate.formatted(.dateTime.month(.wide)))
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Design.Colors.textSecondary)
+
+                Spacer()
+
+                // Today button
+                if !Calendar.current.isDateInToday(selectedDate) {
+                    Button {
+                        HapticManager.impact(.light)
+                        withAnimation(Design.Animation.smooth) {
+                            selectedDate = Date()
+                        }
+                    } label: {
+                        Text("Сегодня")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Design.Colors.accentPrimary)
+                            .padding(.horizontal, Design.Spacing.s)
+                            .padding(.vertical, Design.Spacing.xxs + 2)
+                            .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .capsule)
+                    }
                 }
-            }
-
-            Spacer()
-
-            // Next button
-            GlassIconButton(icon: "chevron.right") {
-                moveDate(by: 1)
             }
         }
         .padding(.horizontal, Design.Spacing.m)
-        .padding(.vertical, Design.Spacing.s)
+        .padding(.top, Design.Spacing.m)
+        .padding(.bottom, Design.Spacing.s)
+        .scaleEffect(isAnimatingDate ? 0.98 : 1.0, anchor: .leading)
+        .opacity(isAnimatingDate ? 0.7 : 1.0)
     }
 
     // MARK: - Week Strip
@@ -149,7 +190,7 @@ struct CalendarView: View {
 
         return ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Design.Spacing.xs) {
+                HStack(spacing: 6) {
                     ForEach(days, id: \.self) { day in
                         DayCell(
                             date: day,
@@ -158,13 +199,23 @@ struct CalendarView: View {
                         ) {
                             HapticManager.selection()
                             withAnimation(Design.Animation.smooth) {
+                                isAnimatingDate = true
                                 selectedDate = day
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation { isAnimatingDate = false }
                             }
                         }
                         .id(day)
                     }
                 }
                 .padding(.horizontal, Design.Spacing.m)
+                .padding(.vertical, 6) // extra room so scaled selected cell isn't clipped
+            }
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    proxy.scrollTo(selectedDate, anchor: .center)
+                }
             }
             .onChange(of: selectedDate) { _, newDate in
                 withAnimation {
@@ -172,34 +223,68 @@ struct CalendarView: View {
                 }
             }
         }
+        .padding(.vertical, Design.Spacing.xs)
+        .padding(.horizontal, Design.Spacing.xxs)
+        .glassEffect(.regular.tint(Color.blue.opacity(0.08)), in: .rect(cornerRadius: Design.Radius.xl))
+        .padding(.horizontal, Design.Spacing.s)
+    }
+
+    // MARK: - Summary Pill
+
+    private var summaryPill: some View {
+        HStack(spacing: Design.Spacing.m) {
+            Label("\(todayAppointments.count) записей", systemImage: "calendar")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Design.Colors.textSecondary)
+
+            Spacer()
+
+            let completed = todayAppointments.filter { $0.status == .completed }.count
+            if completed > 0 {
+                Label("\(completed) готово", systemImage: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Design.Colors.accentSuccess)
+            }
+        }
+        .padding(.horizontal, Design.Spacing.m)
         .padding(.vertical, Design.Spacing.s)
+        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .capsule)
+        .padding(.horizontal, Design.Spacing.m)
+    }
+
+    // MARK: - Empty State
+
+    private var emptyState: some View {
+        VStack(spacing: Design.Spacing.m) {
+            Image(systemName: "calendar.badge.checkmark")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(Design.Colors.textTertiary.opacity(0.5))
+
+            VStack(spacing: Design.Spacing.xxs) {
+                Text("Нет записей")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Design.Colors.textSecondary)
+
+                Text("Этот день свободен")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Design.Colors.textTertiary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Design.Spacing.xxl)
+        .glassEffect(.regular.tint(Color.white.opacity(0.03)), in: .rect(cornerRadius: Design.Radius.xl))
     }
 
     // MARK: - Helpers
 
-    private func moveDate(by days: Int) {
-        withAnimation(Design.Animation.quick) {
-            isAnimatingDate = true
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            withAnimation(Design.Animation.smooth) {
-                selectedDate = Calendar.current.date(byAdding: .day, value: days, to: selectedDate) ?? selectedDate
-                isAnimatingDate = false
-            }
-        }
-    }
-
     private func weekDays(around date: Date) -> [Date] {
         let calendar = Calendar.current
         var days: [Date] = []
-
         for offset in -14...14 {
             if let day = calendar.date(byAdding: .day, value: offset, to: date) {
                 days.append(day)
             }
         }
-
         return days
     }
 
@@ -222,33 +307,33 @@ struct DayCell: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: Design.Spacing.xxs) {
+            VStack(spacing: 6) {
                 Text(date.formatted(.dateTime.weekday(.narrow)))
-                    .font(Design.Typography.caption2)
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(isSelected ? .white : Design.Colors.textTertiary)
 
                 Text(date.formatted(.dateTime.day()))
-                    .font(Design.Typography.headline)
+                    .font(.system(size: isSelected ? 18 : 16, weight: isSelected || isToday ? .bold : .medium, design: .rounded))
                     .foregroundStyle(isSelected ? .white : (isToday ? Design.Colors.accentPrimary : Design.Colors.textPrimary))
 
-                // Appointment indicator
+                // Indicator dot
                 Circle()
                     .fill(hasAppointments ? (isSelected ? .white : Design.Colors.accentPrimary) : .clear)
-                    .frame(width: 6, height: 6)
+                    .frame(width: 5, height: 5)
             }
             .frame(width: 44, height: 70)
             .background {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: Design.Radius.m)
+                    RoundedRectangle(cornerRadius: 16)
                         .fill(Design.Colors.accentPrimary)
+                        .shadow(color: Design.Colors.accentPrimary.opacity(0.3), radius: 8, y: 2)
                 } else if isToday {
-                    RoundedRectangle(cornerRadius: Design.Radius.m)
-                        .strokeBorder(Design.Colors.accentPrimary, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(Design.Colors.accentPrimary.opacity(0.4), lineWidth: 1.5)
                 }
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(isSelected ? 1.05 : 1.0)
         .animation(Design.Animation.bouncy, value: isSelected)
     }
 }
@@ -263,72 +348,64 @@ struct AppointmentRow: View {
     @State private var isExpanded = false
 
     var body: some View {
-        SwipeActionCard(
-            onDelete: {
-                HapticManager.notification(.warning)
-                onDelete?()
-            },
-            onEdit: {
-                // Edit functionality handled by sheet
-            }
-        ) {
-            VStack(spacing: Design.Spacing.s) {
-                // Main content
-                HStack(spacing: Design.Spacing.m) {
-                    // Time column
-                    VStack(spacing: Design.Spacing.xxs) {
-                        Text(appointment.formattedTime)
-                            .font(Design.Typography.headline)
-                            .foregroundStyle(Design.Colors.textPrimary)
+        VStack(spacing: 0) {
+            // Main content
+            HStack(spacing: Design.Spacing.m) {
+                // Time
+                VStack(spacing: 2) {
+                    Text(appointment.formattedTime)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Design.Colors.textPrimary)
 
-                        if let service = appointment.service {
-                            Text("\(service.duration)m")
-                                .font(Design.Typography.caption2)
-                                .foregroundStyle(Design.Colors.textTertiary)
-                        }
+                    if let service = appointment.service {
+                        Text("\(service.duration) мин")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Design.Colors.textTertiary)
                     }
-                    .frame(width: 60)
+                }
+                .frame(width: 54)
 
-                    // Colored bar
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(statusColor)
-                        .frame(width: 4)
+                // Color accent line
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(statusColor)
+                    .frame(width: 3, height: 38)
 
-                    // Details
-                    VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                        Text(appointment.client?.name ?? "Unknown Client")
-                            .font(Design.Typography.headline)
-                            .foregroundStyle(Design.Colors.textPrimary)
+                // Client & service
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(appointment.client?.name ?? "Клиент")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Design.Colors.textPrimary)
 
-                        if let service = appointment.service {
-                            Text(service.name)
-                                .font(Design.Typography.subheadline)
-                                .foregroundStyle(Design.Colors.textSecondary)
-                        }
+                    if let service = appointment.service {
+                        Text(service.name)
+                            .font(.system(size: 13))
+                            .foregroundStyle(Design.Colors.textSecondary)
                     }
-
-                    Spacer()
-
-                    // Status badge
-                    StatusBadge(status: appointment.status)
                 }
 
-                // Expandable details
-                if isExpanded {
-                    Divider()
-                        .padding(.vertical, Design.Spacing.xs)
+                Spacer()
 
-                    HStack(spacing: Design.Spacing.m) {
+                // Status
+                StatusBadge(status: appointment.status)
+            }
+
+            // Expandable actions
+            if isExpanded {
+                Rectangle()
+                    .fill(Design.Colors.textTertiary.opacity(0.15))
+                    .frame(height: 0.5)
+                    .padding(.vertical, Design.Spacing.s)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Design.Spacing.xs) {
                         if let phone = appointment.client?.phone {
-                            ActionChip(icon: "phone.fill", title: "Call") {
+                            ActionChip(icon: "phone.fill", title: "Звонок") {
                                 if let url = InputValidator.safePhoneURL(phone) {
                                     UIApplication.shared.open(url)
                                 }
                             }
-                        }
 
-                        if let phone = appointment.client?.phone {
-                            ActionChip(icon: "message.fill", title: "Message") {
+                            ActionChip(icon: "message.fill", title: "SMS") {
                                 if let url = InputValidator.safeSMSURL(phone) {
                                     UIApplication.shared.open(url)
                                 }
@@ -336,32 +413,30 @@ struct AppointmentRow: View {
                         }
 
                         if appointment.status == .scheduled {
-                            ActionChip(icon: "play.fill", title: "Start") {
+                            ActionChip(icon: "play.fill", title: "Старт", tint: .green) {
                                 LiveActivityManager.shared.startActivity(
-                                    clientName: appointment.client?.name ?? "Client",
-                                    serviceName: appointment.service?.name ?? "Service",
+                                    clientName: appointment.client?.name ?? "Клиент",
+                                    serviceName: appointment.service?.name ?? "Услуга",
                                     durationMinutes: appointment.service?.duration ?? 60
                                 )
                                 HapticManager.impact(.medium)
                             }
 
-                            ActionChip(icon: "checkmark", title: "Complete") {
+                            ActionChip(icon: "checkmark", title: "Готово", tint: .green) {
                                 withAnimation {
                                     appointment.status = .completed
-                                    // Update client's totalSpent
                                     if let client = appointment.client, let price = appointment.service?.price {
                                         client.totalSpent += price
                                     }
                                 }
                                 StatsCache.shared.invalidate()
-                                // End Live Activity if active
                                 if LiveActivityManager.shared.isActivityActive {
                                     LiveActivityManager.shared.endActivity()
                                 }
                                 HapticManager.notification(.success)
                             }
 
-                            ActionChip(icon: "xmark", title: "Cancel") {
+                            ActionChip(icon: "xmark", title: "Отмена", tint: .red) {
                                 withAnimation {
                                     appointment.status = .cancelled
                                 }
@@ -369,11 +444,19 @@ struct AppointmentRow: View {
                                 HapticManager.notification(.warning)
                             }
                         }
+
+                        // Delete
+                        ActionChip(icon: "trash", title: "Удалить", tint: .red) {
+                            HapticManager.notification(.warning)
+                            onDelete?()
+                        }
                     }
-                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .padding(Design.Spacing.m)
+        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
         .onTapGesture {
             HapticManager.impact(.light)
             withAnimation(Design.Animation.smooth) {
@@ -399,20 +482,19 @@ struct StatusBadge: View {
 
     var body: some View {
         Text(statusText)
-            .font(Design.Typography.caption2)
-            .fontWeight(.medium)
+            .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(statusColor)
             .padding(.horizontal, Design.Spacing.xs)
-            .padding(.vertical, Design.Spacing.xxs)
-            .background(statusColor.opacity(0.15), in: Capsule())
+            .padding(.vertical, 4)
+            .background(statusColor.opacity(0.12), in: Capsule())
     }
 
     private var statusText: String {
         switch status {
-        case .scheduled: "Scheduled"
-        case .completed: "Completed"
-        case .cancelled: "Cancelled"
-        case .noShow: "No Show"
+        case .scheduled: "Ожидает"
+        case .completed: "Готово"
+        case .cancelled: "Отменён"
+        case .noShow: "Неявка"
         }
     }
 
@@ -431,6 +513,7 @@ struct StatusBadge: View {
 struct ActionChip: View {
     let icon: String
     let title: String
+    var tint: Color = Design.Colors.accentPrimary
     let action: () -> Void
 
     var body: some View {
@@ -438,16 +521,16 @@ struct ActionChip: View {
             HapticManager.impact(.light)
             action()
         } label: {
-            HStack(spacing: Design.Spacing.xxs) {
+            HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(.system(size: 11, weight: .medium))
                 Text(title)
-                    .font(Design.Typography.caption2)
+                    .font(.system(size: 12, weight: .medium))
             }
-            .foregroundStyle(Design.Colors.accentPrimary)
+            .foregroundStyle(tint)
             .padding(.horizontal, Design.Spacing.s)
-            .padding(.vertical, Design.Spacing.xs)
-            .background(Design.Colors.accentPrimary.opacity(0.1), in: Capsule())
+            .padding(.vertical, 7)
+            .background(tint.opacity(0.1), in: Capsule())
         }
         .buttonStyle(.plain)
     }
@@ -470,6 +553,10 @@ struct AddAppointmentView: View {
     @State private var notes = ""
     @State private var isSaving = false
     @State private var showingPastDateWarning = false
+    @State private var currentStep = 0 // 0=time, 1=service, 2=client, 3=notes
+    @State private var showingNewClient = false
+    @State private var newClientName = ""
+    @State private var newClientPhone = ""
 
     init(selectedDate: Date) {
         self.selectedDate = selectedDate
@@ -478,81 +565,197 @@ struct AddAppointmentView: View {
         _appointmentTime = State(initialValue: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: selectedDate) ?? selectedDate)
     }
 
+    private var canSave: Bool {
+        selectedService != nil && selectedClient != nil
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 Design.Colors.backgroundPrimary.ignoresSafeArea()
 
                 ScrollView {
-                    VStack(spacing: Design.Spacing.l) {
-                        // Time Selection
-                        VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                            Label("Date & Time", systemImage: "clock")
-                                .font(Design.Typography.headline)
-                                .foregroundStyle(Design.Colors.textPrimary)
-                                .padding(.horizontal, Design.Spacing.m)
+                    VStack(spacing: Design.Spacing.xl) {
 
-                            DatePicker(
-                                "",
-                                selection: $appointmentTime,
-                                displayedComponents: [.date, .hourAndMinute]
-                            )
-                            .datePickerStyle(.graphical)
-                            .tint(Design.Colors.accentPrimary)
-                            .padding(Design.Spacing.m)
-                            .background(
-                                RoundedRectangle(cornerRadius: Design.Radius.l)
-                                    .fill(Design.Colors.backgroundSecondary.opacity(0.5))
-                            )
-                            .padding(.horizontal, Design.Spacing.m)
+                        // Step indicators
+                        stepIndicator
+                            .padding(.top, Design.Spacing.s)
+                            .animateOnAppear()
+
+                        // Date & Time — compact inline picker
+                        sectionCard(delay: 0) {
+                            HStack {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 18, weight: .medium))
+                                    .foregroundStyle(Design.Colors.accentPrimary)
+                                    .frame(width: 36, height: 36)
+                                    .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Дата и время")
+                                        .font(Design.Typography.caption1)
+                                        .foregroundStyle(Design.Colors.textSecondary)
+
+                                    DatePicker(
+                                        "",
+                                        selection: $appointmentTime,
+                                        displayedComponents: [.date, .hourAndMinute]
+                                    )
+                                    .datePickerStyle(.compact)
+                                    .labelsHidden()
+                                    .tint(Design.Colors.accentPrimary)
+                                }
+
+                                Spacer()
+                            }
                         }
-                        .animateOnAppear()
 
                         // Service Selection
-                        VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                            Label("Service", systemImage: "scissors")
-                                .font(Design.Typography.headline)
-                                .foregroundStyle(Design.Colors.textPrimary)
+                        sectionCard(delay: 0.05) {
+                            VStack(alignment: .leading, spacing: Design.Spacing.m) {
+                                HStack {
+                                    Image(systemName: "scissors")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(.purple)
+                                        .frame(width: 36, height: 36)
+                                        .glassEffect(.regular.tint(Color.purple.opacity(0.15)), in: .circle)
 
-                            if services.isEmpty {
-                                EmptyStateView(
-                                    icon: "scissors",
-                                    title: "No services",
-                                    subtitle: "Add services in your profile first"
-                                )
-                            } else {
-                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Design.Spacing.s) {
-                                    ForEach(services, id: \.id) { service in
-                                        ServiceSelectionCard(
-                                            service: service,
-                                            isSelected: selectedService?.id == service.id
-                                        ) {
-                                            HapticManager.selection()
-                                            withAnimation(Design.Animation.smooth) {
-                                                selectedService = service
+                                    Text("Услуга")
+                                        .font(Design.Typography.caption1)
+                                        .foregroundStyle(Design.Colors.textSecondary)
+
+                                    Spacer()
+
+                                    if let service = selectedService {
+                                        Text(service.formattedPrice)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(Design.Colors.accentPrimary)
+                                    }
+                                }
+
+                                if services.isEmpty {
+                                    Text("Добавьте услуги в профиле")
+                                        .font(Design.Typography.subheadline)
+                                        .foregroundStyle(Design.Colors.textTertiary)
+                                } else {
+                                    FlowLayout(spacing: Design.Spacing.xs) {
+                                        ForEach(services, id: \.id) { service in
+                                            ServiceSelectionCard(
+                                                service: service,
+                                                isSelected: selectedService?.id == service.id
+                                            ) {
+                                                HapticManager.selection()
+                                                withAnimation(Design.Animation.smooth) {
+                                                    selectedService = service
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-                        .animateOnAppear(delay: 0.1)
 
                         // Client Selection
-                        VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                            Label("Client", systemImage: "person")
-                                .font(Design.Typography.headline)
-                                .foregroundStyle(Design.Colors.textPrimary)
+                        sectionCard(delay: 0.1) {
+                            VStack(alignment: .leading, spacing: Design.Spacing.m) {
+                                HStack {
+                                    Image(systemName: "person")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(.orange)
+                                        .frame(width: 36, height: 36)
+                                        .glassEffect(.regular.tint(Color.orange.opacity(0.15)), in: .circle)
 
-                            if clients.isEmpty {
-                                EmptyStateView(
-                                    icon: "person.badge.plus",
-                                    title: "No clients",
-                                    subtitle: "Add your first client"
-                                )
-                            } else {
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: Design.Spacing.s) {
+                                    Text("Клиент")
+                                        .font(Design.Typography.caption1)
+                                        .foregroundStyle(Design.Colors.textSecondary)
+
+                                    Spacer()
+
+                                    // Quick add client button
+                                    Button {
+                                        HapticManager.impact(.light)
+                                        withAnimation(Design.Animation.smooth) {
+                                            showingNewClient.toggle()
+                                            if !showingNewClient {
+                                                newClientName = ""
+                                                newClientPhone = ""
+                                            }
+                                        }
+                                    } label: {
+                                        Image(systemName: showingNewClient ? "xmark" : "plus")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(showingNewClient ? Design.Colors.textTertiary : Design.Colors.accentPrimary)
+                                            .frame(width: 30, height: 30)
+                                            .glassEffect(
+                                                .regular.tint(showingNewClient ? Color.gray.opacity(0.1) : Color.blue.opacity(0.15)),
+                                                in: .circle
+                                            )
+                                    }
+                                }
+
+                                // Inline new client form
+                                if showingNewClient {
+                                    VStack(spacing: Design.Spacing.s) {
+                                        HStack(spacing: Design.Spacing.s) {
+                                            Image(systemName: "person.fill")
+                                                .font(.system(size: 13))
+                                                .foregroundStyle(Design.Colors.textTertiary)
+                                                .frame(width: 20)
+
+                                            TextField("Имя клиента", text: $newClientName)
+                                                .font(Design.Typography.body)
+                                                .textContentType(.name)
+                                        }
+                                        .padding(Design.Spacing.s)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: Design.Radius.m)
+                                                .fill(Design.Colors.backgroundPrimary.opacity(0.5))
+                                        )
+
+                                        HStack(spacing: Design.Spacing.s) {
+                                            Image(systemName: "phone.fill")
+                                                .font(.system(size: 13))
+                                                .foregroundStyle(Design.Colors.textTertiary)
+                                                .frame(width: 20)
+
+                                            TextField("Телефон (необязательно)", text: $newClientPhone)
+                                                .font(Design.Typography.body)
+                                                .textContentType(.telephoneNumber)
+                                                .keyboardType(.phonePad)
+                                        }
+                                        .padding(Design.Spacing.s)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: Design.Radius.m)
+                                                .fill(Design.Colors.backgroundPrimary.opacity(0.5))
+                                        )
+
+                                        Button {
+                                            addNewClient()
+                                        } label: {
+                                            HStack(spacing: Design.Spacing.xs) {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 13, weight: .semibold))
+                                                Text("Добавить")
+                                                    .font(.system(size: 14, weight: .semibold))
+                                            }
+                                            .foregroundStyle(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, Design.Spacing.s)
+                                            .background(
+                                                Capsule()
+                                                    .fill(newClientName.trimmingCharacters(in: .whitespaces).isEmpty
+                                                        ? Color.gray.opacity(0.3)
+                                                        : Design.Colors.accentPrimary)
+                                            )
+                                        }
+                                        .disabled(newClientName.trimmingCharacters(in: .whitespaces).isEmpty)
+                                    }
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                }
+
+                                // Existing clients list
+                                if !clients.isEmpty {
+                                    FlowLayout(spacing: Design.Spacing.xs) {
                                         ForEach(clients, id: \.id) { client in
                                             ClientChip(
                                                 client: client,
@@ -565,43 +768,89 @@ struct AddAppointmentView: View {
                                             }
                                         }
                                     }
+                                } else if !showingNewClient {
+                                    Text("Нажмите + чтобы добавить клиента")
+                                        .font(Design.Typography.subheadline)
+                                        .foregroundStyle(Design.Colors.textTertiary)
                                 }
                             }
                         }
-                        .animateOnAppear(delay: 0.2)
 
                         // Notes
-                        VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                            Label("Notes", systemImage: "note.text")
-                                .font(Design.Typography.headline)
-                                .foregroundStyle(Design.Colors.textPrimary)
+                        sectionCard(delay: 0.15) {
+                            VStack(alignment: .leading, spacing: Design.Spacing.s) {
+                                HStack {
+                                    Image(systemName: "text.quote")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(.mint)
+                                        .frame(width: 36, height: 36)
+                                        .glassEffect(.regular.tint(Color.mint.opacity(0.15)), in: .circle)
 
-                            TextField("Add notes (optional)", text: $notes, axis: .vertical)
-                                .lineLimit(3...6)
-                                .padding(Design.Spacing.s)
-                                .background(Design.Colors.backgroundSecondary, in: RoundedRectangle(cornerRadius: Design.Radius.m))
+                                    Text("Заметки")
+                                        .font(Design.Typography.caption1)
+                                        .foregroundStyle(Design.Colors.textSecondary)
+
+                                    Spacer()
+                                }
+
+                                TextField("Дополнительная информация...", text: $notes, axis: .vertical)
+                                    .lineLimit(2...4)
+                                    .font(Design.Typography.body)
+                                    .padding(Design.Spacing.s)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: Design.Radius.m)
+                                            .fill(Design.Colors.backgroundPrimary.opacity(0.5))
+                                    )
+                            }
                         }
-                        .animateOnAppear(delay: 0.3)
+
+                        // Save button
+                        Button {
+                            saveAppointment()
+                        } label: {
+                            HStack(spacing: Design.Spacing.s) {
+                                if isSaving {
+                                    ProgressView()
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 16, weight: .semibold))
+                                }
+                                Text("Сохранить")
+                                    .font(.system(size: 17, weight: .semibold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Design.Spacing.m)
+                            .background(
+                                RoundedRectangle(cornerRadius: Design.Radius.l)
+                                    .fill(canSave
+                                        ? LinearGradient(colors: [Design.Colors.accentPrimary, Design.Colors.accentPrimary.opacity(0.7)], startPoint: .leading, endPoint: .trailing)
+                                        : LinearGradient(colors: [.gray.opacity(0.3), .gray.opacity(0.3)], startPoint: .leading, endPoint: .trailing)
+                                    )
+                            )
+                        }
+                        .disabled(!canSave || isSaving)
+                        .animateOnAppear(delay: 0.2)
+                        .padding(.top, Design.Spacing.xs)
                     }
-                    .padding(Design.Spacing.m)
+                    .padding(.horizontal, Design.Spacing.m)
                     .padding(.bottom, Design.Spacing.xxl)
                 }
+                .scrollDismissesKeyboard(.immediately)
             }
-            .navigationTitle("New Appointment")
+            .navigationTitle("Новая запись")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button {
                         HapticManager.impact(.light)
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textTertiary)
                     }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    GlassButton(title: "Save", icon: "checkmark", isLoading: isSaving) {
-                        saveAppointment()
-                    }
-                    .disabled(selectedService == nil || selectedClient == nil)
                 }
             }
             .alert("Прошедшая дата", isPresented: $showingPastDateWarning) {
@@ -615,13 +864,80 @@ struct AddAppointmentView: View {
         }
     }
 
+    // MARK: - Step Indicator
+
+    private var stepIndicator: some View {
+        HStack(spacing: Design.Spacing.xs) {
+            stepDot(filled: true, label: "Время")
+            stepLine
+            stepDot(filled: selectedService != nil, label: "Услуга")
+            stepLine
+            stepDot(filled: selectedClient != nil, label: "Клиент")
+        }
+        .padding(.horizontal, Design.Spacing.xl)
+    }
+
+    private func stepDot(filled: Bool, label: String) -> some View {
+        VStack(spacing: Design.Spacing.xxs) {
+            Circle()
+                .fill(filled ? Design.Colors.accentPrimary : Design.Colors.textTertiary.opacity(0.3))
+                .frame(width: 10, height: 10)
+
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(filled ? Design.Colors.accentPrimary : Design.Colors.textTertiary)
+        }
+    }
+
+    private var stepLine: some View {
+        Rectangle()
+            .fill(Design.Colors.textTertiary.opacity(0.2))
+            .frame(height: 1)
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 14) // align with dots
+    }
+
+    // MARK: - Section Card
+
+    private func sectionCard<Content: View>(delay: Double, @ViewBuilder content: () -> Content) -> some View {
+        content()
+            .padding(Design.Spacing.m)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+            .animateOnAppear(delay: delay)
+    }
+
+    // MARK: - Save Logic
+
+    private func addNewClient() {
+        let name = newClientName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+
+        HapticManager.impact(.medium)
+
+        let phone = newClientPhone.trimmingCharacters(in: .whitespaces)
+        let client = Client(
+            name: InputValidator.sanitize(name),
+            phone: phone.isEmpty ? nil : phone
+        )
+
+        modelContext.insert(client)
+
+        withAnimation(Design.Animation.smooth) {
+            selectedClient = client
+            showingNewClient = false
+            newClientName = ""
+            newClientPhone = ""
+        }
+
+        HapticManager.notification(.success)
+    }
+
     private func saveAppointment() {
-        // Check if date is in the past
         if appointmentTime < Date() {
             showingPastDateWarning = true
             return
         }
-
         performSave()
     }
 
@@ -637,9 +953,8 @@ struct AddAppointmentView: View {
         appointment.notes = notes.isEmpty ? nil : InputValidator.sanitize(notes)
 
         modelContext.insert(appointment)
-        StatsCache.shared.invalidate() // Invalidate stats cache
+        StatsCache.shared.invalidate()
 
-        // Schedule push notification reminder (1 hour before)
         if UserDefaults.standard.bool(forKey: "notificationsEnabled") {
             NotificationManager.shared.scheduleReminder(for: appointment)
         }
@@ -648,6 +963,48 @@ struct AddAppointmentView: View {
             HapticManager.notification(.success)
             dismiss()
         }
+    }
+}
+
+// MARK: - Flow Layout (wrapping tags)
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        return result.size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(proposal: proposal, subviews: subviews)
+        for (index, position) in result.positions.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + position.x, y: bounds.minY + position.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var maxX: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth && x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+            maxX = max(maxX, x)
+        }
+
+        return (positions, CGSize(width: maxX, height: y + rowHeight))
     }
 }
 
@@ -660,40 +1017,24 @@ struct ServiceSelectionCard: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+            HStack(spacing: Design.Spacing.xs) {
                 Text(service.name)
-                    .font(Design.Typography.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundStyle(Design.Colors.textPrimary)
-                    .lineLimit(1)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isSelected ? .white : Design.Colors.textPrimary)
 
-                HStack {
-                    Text(service.formattedPrice)
-                        .font(Design.Typography.caption1)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Design.Colors.accentPrimary)
-
-                    Spacer()
-
-                    Text(service.formattedDuration)
-                        .font(Design.Typography.caption2)
-                        .foregroundStyle(Design.Colors.textTertiary)
-                }
+                Text(service.formattedDuration)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(isSelected ? .white.opacity(0.7) : Design.Colors.textTertiary)
             }
-            .padding(Design.Spacing.s)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Design.Spacing.s)
+            .padding(.vertical, Design.Spacing.xs)
             .background {
-                RoundedRectangle(cornerRadius: Design.Radius.m)
-                    .fill(isSelected ? Design.Colors.accentPrimary.opacity(0.1) : Design.Colors.backgroundSecondary)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Design.Radius.m)
-                            .strokeBorder(isSelected ? Design.Colors.accentPrimary : .clear, lineWidth: 2)
-                    }
+                Capsule()
+                    .fill(isSelected ? Design.Colors.accentPrimary : Design.Colors.backgroundSecondary)
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(Design.Animation.bouncy, value: isSelected)
+        .animation(Design.Animation.smooth, value: isSelected)
     }
 }
 
@@ -707,34 +1048,29 @@ struct ClientChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: Design.Spacing.xs) {
-                Circle()
-                    .fill(isSelected ? Design.Colors.accentPrimary : Design.Colors.accentPrimary.opacity(0.2))
-                    .frame(width: 32, height: 32)
-                    .overlay {
-                        Text(client.initials)
-                            .font(Design.Typography.caption2)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(isSelected ? .white : Design.Colors.accentPrimary)
-                    }
+                Text(client.initials)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(isSelected ? .white : Design.Colors.accentPrimary)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? Design.Colors.accentPrimary : Design.Colors.accentPrimary.opacity(0.15))
+                    )
 
                 Text(client.name)
-                    .font(Design.Typography.subheadline)
-                    .foregroundStyle(isSelected ? Design.Colors.accentPrimary : Design.Colors.textPrimary)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isSelected ? .white : Design.Colors.textPrimary)
             }
-            .padding(.horizontal, Design.Spacing.s)
-            .padding(.vertical, Design.Spacing.xs)
-             .background {
+            .padding(.leading, Design.Spacing.xxs)
+            .padding(.trailing, Design.Spacing.s)
+            .padding(.vertical, Design.Spacing.xxs)
+            .background {
                 Capsule()
-                    .fill(isSelected ? Design.Colors.accentPrimary.opacity(0.15) : Design.Colors.backgroundSecondary)
-                    .overlay {
-                        Capsule()
-                            .strokeBorder(isSelected ? Design.Colors.accentPrimary : .clear, lineWidth: 2)
-                    }
+                    .fill(isSelected ? Design.Colors.accentPrimary : Design.Colors.backgroundSecondary)
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(isSelected ? 1.05 : 1.0)
-        .animation(Design.Animation.bouncy, value: isSelected)
+        .animation(Design.Animation.smooth, value: isSelected)
     }
 }
 

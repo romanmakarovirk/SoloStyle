@@ -53,7 +53,7 @@ struct ProfileView: View {
                     .padding(.bottom, Design.Spacing.xxl)
                 }
             }
-            .navigationTitle("Profile")
+            .navigationTitle(L.profile)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -98,7 +98,7 @@ struct ProfileView: View {
                 }
 
                 VStack(spacing: Design.Spacing.xxs) {
-                    Text(master?.name ?? "Your Name")
+                    Text(master?.name ?? L.yourName)
                         .font(Design.Typography.title2)
                         .foregroundStyle(Design.Colors.textPrimary)
 
@@ -126,21 +126,21 @@ struct ProfileView: View {
             ProfileStatCard(
                 icon: "person.2.fill",
                 value: "\(statsCache.clientCount)",
-                label: "Clients",
+                label: L.clients,
                 color: .blue
             )
 
             ProfileStatCard(
                 icon: "calendar.badge.checkmark",
                 value: "\(statsCache.appointmentCount)",
-                label: "Appointments",
+                label: L.appointments,
                 color: .green
             )
 
             ProfileStatCard(
                 icon: "scissors",
                 value: "\(services.count)",
-                label: "Services",
+                label: L.services,
                 color: .purple
             )
         }
@@ -154,21 +154,21 @@ struct ProfileView: View {
     private var earningsSection: some View {
         VStack(spacing: Design.Spacing.s) {
             HStack {
-                Text("Earnings")
+                Text(L.earnings)
                     .font(Design.Typography.headline)
                 Spacer()
             }
 
             HStack(spacing: Design.Spacing.s) {
                 EarningsCard(
-                    title: "This Month",
+                    title: L.thisMonth,
                     amount: statsCache.thisMonthEarnings,
                     icon: "calendar",
                     color: .green
                 )
 
                 EarningsCard(
-                    title: "This Year",
+                    title: L.thisYear,
                     amount: statsCache.thisYearEarnings,
                     icon: "chart.line.uptrend.xyaxis",
                     color: .blue
@@ -188,9 +188,9 @@ struct ProfileView: View {
                         .foregroundStyle(Design.Colors.accentSuccess)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Your Booking Link")
+                        Text(L.bookingLink)
                             .font(Design.Typography.headline)
-                        Text("Share with clients to receive bookings")
+                        Text(L.shareWithClients)
                             .font(Design.Typography.caption1)
                             .foregroundStyle(Design.Colors.textSecondary)
                     }
@@ -208,7 +208,7 @@ struct ProfileView: View {
                     Spacer()
 
                     if copiedLink {
-                        Label("Copied!", systemImage: "checkmark.circle.fill")
+                        Label(L.copied, systemImage: "checkmark.circle.fill")
                             .font(Design.Typography.caption1)
                             .foregroundStyle(Design.Colors.accentSuccess)
                             .transition(.scale.combined(with: .opacity))
@@ -222,11 +222,11 @@ struct ProfileView: View {
 
                 // Action buttons
                 HStack(spacing: Design.Spacing.s) {
-                    GlassButton(title: "Copy Link", icon: "doc.on.doc", style: .secondary, isFullWidth: true) {
+                    GlassButton(title: L.copyLink, icon: "doc.on.doc", style: .secondary, isFullWidth: true) {
                         copyBookingLink(master)
                     }
 
-                    GlassButton(title: "Share", icon: "square.and.arrow.up", isFullWidth: true) {
+                    GlassButton(title: L.share, icon: "square.and.arrow.up", isFullWidth: true) {
                         shareBookingLink(master)
                     }
                 }
@@ -257,7 +257,7 @@ struct ProfileView: View {
     private var servicesSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
             HStack {
-                Text("Services")
+                Text(L.services)
                     .font(Design.Typography.headline)
 
                 Spacer()
@@ -280,14 +280,14 @@ struct ProfileView: View {
                             .font(.system(size: 32))
                             .foregroundStyle(Design.Colors.textTertiary)
 
-                        Text("No services yet")
+                        Text(L.noServicesYet)
                             .font(Design.Typography.subheadline)
                             .foregroundStyle(Design.Colors.textSecondary)
 
                         Button {
                             showingAddService = true
                         } label: {
-                            Text("Add Service")
+                            Text(L.addService)
                                 .font(Design.Typography.subheadline)
                                 .fontWeight(.medium)
                                 .foregroundStyle(.white)
@@ -506,16 +506,16 @@ struct EmptyServicesCard: View {
                     .font(.system(size: 40))
                     .foregroundStyle(Design.Colors.textTertiary)
 
-                Text("No services yet")
+                Text(L.noServicesYet)
                     .font(Design.Typography.headline)
                     .foregroundStyle(Design.Colors.textSecondary)
 
-                Text("Add services that clients can book")
+                Text(L.addServicesClients)
                     .font(Design.Typography.caption1)
                     .foregroundStyle(Design.Colors.textTertiary)
                     .multilineTextAlignment(.center)
 
-                GlassButton(title: "Add Service", icon: "plus") {
+                GlassButton(title: L.addService, icon: "plus") {
                     onAdd()
                 }
             }
@@ -546,7 +546,7 @@ struct AddServiceCard: View {
                         .foregroundStyle(Design.Colors.accentPrimary)
                 }
 
-                Text("Add Service")
+                Text(L.addService)
                     .font(Design.Typography.subheadline)
                     .foregroundStyle(Design.Colors.accentPrimary)
             }
@@ -590,7 +590,7 @@ struct WorkDayRow: View {
 
     var body: some View {
         HStack {
-            Text(day.fullName)
+            Text(L.dayName(day.fullName))
                 .font(Design.Typography.body)
                 .foregroundStyle(isWorking ? Design.Colors.textPrimary : Design.Colors.textTertiary)
 
@@ -601,7 +601,7 @@ struct WorkDayRow: View {
                     .font(Design.Typography.subheadline)
                     .foregroundStyle(Design.Colors.textSecondary)
             } else {
-                Text("Closed")
+                Text(L.closed)
                     .font(Design.Typography.subheadline)
                     .foregroundStyle(Design.Colors.textTertiary)
             }
@@ -644,44 +644,44 @@ struct EditProfileView: View {
                             HapticManager.selection()
                             showingPhotoOptions = true
                         } label: {
-                            Label("Change Photo", systemImage: "camera.fill")
+                            Label(L.changePhoto, systemImage: "camera.fill")
                                 .font(Design.Typography.subheadline)
                                 .foregroundStyle(Design.Colors.accentPrimary)
                         }
                         .animateOnAppear(delay: 0.2)
-                        .confirmationDialog("Choose Photo", isPresented: $showingPhotoOptions) {
-                            Button("Take Photo") {
+                        .confirmationDialog(L.choosePhoto, isPresented: $showingPhotoOptions) {
+                            Button(L.takePhoto) {
                                 HapticManager.selection()
                                 // Camera functionality requires PhotoUI integration
                                 // For now, redirect to photo library
                                 showingImagePicker = true
                             }
-                            Button("Choose from Library") {
+                            Button(L.chooseFromLibrary) {
                                 HapticManager.selection()
                                 showingImagePicker = true
                             }
-                            Button("Cancel", role: .cancel) {}
+                            Button(L.cancel, role: .cancel) {}
                         }
 
                         VStack(spacing: Design.Spacing.m) {
-                            FormField(title: "Name", placeholder: "Your name", text: $name, icon: "person")
+                            FormField(title: L.name, placeholder: L.yourNamePlaceholder, text: $name, icon: "person")
                                 .animateOnAppear(delay: 0.3)
 
-                            FormField(title: "Business Name", placeholder: "Business name (optional)", text: $businessName, icon: "building.2")
+                            FormField(title: L.businessName, placeholder: L.businessNameOptional, text: $businessName, icon: "building.2")
                                 .animateOnAppear(delay: 0.4)
                         }
                         .padding(.horizontal, Design.Spacing.m)
                     }
                 }
             }
-            .navigationTitle(master == nil ? "Create Profile" : "Edit Profile")
+            .navigationTitle(master == nil ? L.createProfile : L.editProfile)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    GlassButton(title: "Save", style: .primary, isLoading: isLoading) {
+                    GlassButton(title: L.save, style: .primary, isLoading: isLoading) {
                         saveProfile()
                     }
                     .disabled(name.isEmpty)
@@ -750,15 +750,15 @@ struct AddServiceView: View {
                             .animateOnAppear(delay: 0.1)
 
                         VStack(spacing: Design.Spacing.m) {
-                            FormField(title: "Service Name", placeholder: "e.g. Haircut", text: $name, icon: "scissors")
+                            FormField(title: L.serviceName, placeholder: L.serviceNamePlaceholder, text: $name, icon: "scissors")
                                 .animateOnAppear(delay: 0.2)
 
-                            FormField(title: "Price (USD)", placeholder: "30", text: $price, icon: "dollarsign", keyboardType: .decimalPad)
+                            FormField(title: L.priceField, placeholder: "30", text: $price, icon: "dollarsign", keyboardType: .decimalPad)
                                 .animateOnAppear(delay: 0.3)
 
                             // Duration picker
                             VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                                Text("Duration")
+                                Text(L.duration)
                                     .font(Design.Typography.caption1)
                                     .foregroundStyle(Design.Colors.textSecondary)
 
@@ -783,14 +783,14 @@ struct AddServiceView: View {
                     .padding(.top, Design.Spacing.m)
                 }
             }
-            .navigationTitle("Add Service")
+            .navigationTitle(L.addService)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    GlassButton(title: "Save", style: .primary, isLoading: isLoading) {
+                    GlassButton(title: L.save, style: .primary, isLoading: isLoading) {
                         saveService()
                     }
                     .disabled(name.isEmpty || price.isEmpty)
@@ -836,7 +836,7 @@ struct ServicePreviewCard: View {
     var body: some View {
         GlassCard(tint: Color.purple.opacity(0.1)) {
             VStack(spacing: Design.Spacing.s) {
-                Text("Preview")
+                Text(L.preview)
                     .font(Design.Typography.caption1)
                     .foregroundStyle(Design.Colors.textTertiary)
 
@@ -852,7 +852,7 @@ struct ServicePreviewCard: View {
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(name.isEmpty ? "Service Name" : name)
+                        Text(name.isEmpty ? L.serviceName : name)
                             .font(Design.Typography.headline)
                             .foregroundStyle(name.isEmpty ? Design.Colors.textTertiary : Design.Colors.textPrimary)
 
@@ -955,12 +955,12 @@ struct EditServiceView: View {
                             .padding(.horizontal, Design.Spacing.m)
 
                         VStack(spacing: Design.Spacing.m) {
-                            FormField(title: "Service Name", placeholder: "e.g. Haircut", text: $name, icon: "scissors")
+                            FormField(title: L.serviceName, placeholder: L.serviceNamePlaceholder, text: $name, icon: "scissors")
 
-                            FormField(title: "Price (USD)", placeholder: "30", text: $price, icon: "dollarsign", keyboardType: .decimalPad)
+                            FormField(title: L.priceField, placeholder: "30", text: $price, icon: "dollarsign", keyboardType: .decimalPad)
 
                             VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                                Text("Duration")
+                                Text(L.duration)
                                     .font(Design.Typography.caption1)
                                     .foregroundStyle(Design.Colors.textSecondary)
 
@@ -985,7 +985,7 @@ struct EditServiceView: View {
                         Button {
                             showingDeleteConfirmation = true
                         } label: {
-                            Label("Delete Service", systemImage: "trash")
+                            Label(L.deleteService, systemImage: "trash")
                                 .font(Design.Typography.body)
                                 .foregroundStyle(Design.Colors.accentError)
                         }
@@ -994,26 +994,26 @@ struct EditServiceView: View {
                     .padding(.top, Design.Spacing.m)
                 }
             }
-            .navigationTitle("Edit Service")
+            .navigationTitle(L.editService)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    GlassButton(title: "Save", style: .primary, isLoading: isLoading) {
+                    GlassButton(title: L.save, style: .primary, isLoading: isLoading) {
                         saveChanges()
                     }
                     .disabled(name.isEmpty || price.isEmpty)
                 }
             }
-            .alert("Delete Service?", isPresented: $showingDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
-                Button("Delete", role: .destructive) {
+            .alert(L.deleteServiceQ, isPresented: $showingDeleteConfirmation) {
+                Button(L.cancel, role: .cancel) { }
+                Button(L.delete, role: .destructive) {
                     deleteService()
                 }
             } message: {
-                Text("This action cannot be undone.")
+                Text(L.actionCannotBeUndone)
             }
         }
     }

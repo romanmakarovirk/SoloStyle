@@ -71,26 +71,26 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         application.shortcutItems = [
             UIApplicationShortcutItem(
                 type: QuickActionDestination.newAppointment.rawValue,
-                localizedTitle: "New Appointment",
-                localizedSubtitle: "Schedule a new appointment",
+                localizedTitle: L.shortcutNewAppointment,
+                localizedSubtitle: L.shortcutNewAppointmentSub,
                 icon: UIApplicationShortcutIcon(systemImageName: "calendar.badge.plus")
             ),
             UIApplicationShortcutItem(
                 type: QuickActionDestination.newClient.rawValue,
-                localizedTitle: "Add Client",
-                localizedSubtitle: "Add a new client",
+                localizedTitle: L.shortcutAddClient,
+                localizedSubtitle: L.shortcutAddClientSub,
                 icon: UIApplicationShortcutIcon(systemImageName: "person.badge.plus")
             ),
             UIApplicationShortcutItem(
                 type: QuickActionDestination.todaySchedule.rawValue,
-                localizedTitle: "Today's Schedule",
-                localizedSubtitle: "View today's appointments",
+                localizedTitle: L.shortcutTodaySchedule,
+                localizedSubtitle: L.shortcutTodayScheduleSub,
                 icon: UIApplicationShortcutIcon(systemImageName: "calendar")
             ),
             UIApplicationShortcutItem(
                 type: QuickActionDestination.analytics.rawValue,
-                localizedTitle: "Analytics",
-                localizedSubtitle: "View business insights",
+                localizedTitle: L.shortcutAnalytics,
+                localizedSubtitle: L.shortcutAnalyticsSub,
                 icon: UIApplicationShortcutIcon(systemImageName: "chart.bar")
             )
         ]
