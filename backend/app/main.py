@@ -63,3 +63,86 @@ async def _keep_alive_loop():
 @app.on_event("startup")
 async def start_keep_alive():
     asyncio.create_task(_keep_alive_loop())
+
+
+# --------------- Telegram Bot (inline polling) ---------------
+
+async def _run_telegram_bot():
+    """Run Telegram bot polling inside the same process as FastAPI."""
+    from app.config import settings
+
+    token = settings.telegram_bot_token
+    if not token:
+        print("[TG-BOT] TELEGRAM_BOT_TOKEN not set, skipping")
+        return
+
+    from telegram import Update
+    from telegram.ext import Application, CommandHandler, ContextTypes
+
+    api_base = os.getenv("API_BASE_URL", "https://solostyle-api.onrender.com/api/v1")
+
+    async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.effective_user
+        if not user:
+            return
+
+        auth_token = context.args[0] if context.args else None
+
+        if not auth_token:
+            await update.message.reply_text(
+                f"Привет, {user.first_name}! 👋\n\n"
+                "Я бот SoloStyle. Чтобы войти в приложение, "
+                "откройте его и нажмите «Войти через Telegram»."
+            )
+            return
+
+        print(f"[TG-BOT] Auth from {user.id} ({user.first_name}), token {auth_token[:8]}...")
+
+        photo_url = None
+        try:
+            photos = await user.get_profile_photos(limit=1)
+            if photos.total_count > 0:
+                file = await context.bot.get_file(photos.photos[0][-1].file_id)
+                photo_url = file.file_path
+        except Exception as e:
+            print(f"[TG-BOT] Photo error: {e}")
+
+        payload = {
+            "auth_token": auth_token,
+            "telegram_id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "username": user.username,
+            "photo_url": photo_url,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(f"{api_base}/auth/telegram-webhook", json=payload)
+
+            if resp.status_code == 200:
+                await update.message.reply_text(
+                    f"Готово, {user.first_name}! ✅\n\n"
+                    "Вернитесь в приложение SoloStyle — вход выполнен автоматически."
+                )
+            elif resp.status_code == 410:
+                await update.message.reply_text("Время входа истекло ⏱\nОткройте приложение и попробуйте снова.")
+            else:
+                print(f"[TG-BOT] Backend error: {resp.status_code} {resp.text}")
+                await update.message.reply_text("Произошла ошибка. Попробуйте позже.")
+        except Exception as e:
+            print(f"[TG-BOT] Request error: {e}")
+            await update.message.reply_text("Не удалось связаться с сервером. Попробуйте позже.")
+
+    bot_app = Application.builder().token(token).build()
+    bot_app.add_handler(CommandHandler("start", start_handler))
+
+    await bot_app.initialize()
+    await bot_app.start()
+    await bot_app.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+    print("[TG-BOT] Bot started polling")
+
+
+@app.on_event("startup")
+async def start_telegram_bot():
+    asyncio.create_task(_run_telegram_bot())
