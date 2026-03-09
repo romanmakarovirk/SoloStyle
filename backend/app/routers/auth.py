@@ -100,12 +100,17 @@ def register_token(body: RegisterTokenRequest, db: Client = Depends(get_supabase
         datetime.now(timezone.utc) + timedelta(minutes=AUTH_TOKEN_TTL_MINUTES)
     ).isoformat()
 
-    db.table("auth_tokens").upsert({
-        "auth_token": body.auth_token,
-        "completed": False,
-        "jwt": None,
-        "expires_at": expires_at,
-    }).execute()
+    try:
+        db.table("auth_tokens").upsert({
+            "auth_token": body.auth_token,
+            "completed": False,
+            "jwt": None,
+            "expires_at": expires_at,
+        }).execute()
+        print(f"[AUTH] register-token OK: {body.auth_token[:8]}...")
+    except Exception as e:
+        print(f"[AUTH] register-token ERROR: {e}")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
     return RegisterTokenResponse()
 
@@ -134,16 +139,23 @@ def telegram_webhook(body: TelegramWebhookPayload, db: Client = Depends(get_supa
     Step 3: Called by the Telegram bot when user sends /start <auth_token>.
     Creates or updates user, generates JWT, marks auth_token as completed.
     """
+    print(f"[AUTH] telegram-webhook: user={body.telegram_id}, token={body.auth_token[:8]}...")
+
     # Verify the auth_token exists and is not expired
-    token_result = (
-        db.table("auth_tokens")
-        .select("*")
-        .eq("auth_token", body.auth_token)
-        .maybe_single()
-        .execute()
-    )
+    try:
+        token_result = (
+            db.table("auth_tokens")
+            .select("*")
+            .eq("auth_token", body.auth_token)
+            .maybe_single()
+            .execute()
+        )
+    except Exception as e:
+        print(f"[AUTH] telegram-webhook DB error: {e}")
+        raise HTTPException(status_code=500, detail=f"DB error: {e}")
 
     if not token_result.data:
+        print(f"[AUTH] telegram-webhook: token NOT FOUND in DB")
         raise HTTPException(status_code=404, detail="Auth token not found")
 
     expires_at = datetime.fromisoformat(token_result.data["expires_at"])

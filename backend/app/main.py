@@ -125,11 +125,17 @@ async def _run_telegram_bot():
                     f"Готово, {user.first_name}! ✅\n\n"
                     "Вернитесь в приложение SoloStyle — вход выполнен автоматически."
                 )
+            elif resp.status_code == 404:
+                print(f"[TG-BOT] Token not found: {resp.text}")
+                await update.message.reply_text(
+                    "Токен не найден 🤔\n\n"
+                    "Откройте приложение SoloStyle и нажмите «Войти через Telegram» ещё раз."
+                )
             elif resp.status_code == 410:
                 await update.message.reply_text("Время входа истекло ⏱\nОткройте приложение и попробуйте снова.")
             else:
                 print(f"[TG-BOT] Backend error: {resp.status_code} {resp.text}")
-                await update.message.reply_text("Произошла ошибка. Попробуйте позже.")
+                await update.message.reply_text(f"Ошибка сервера ({resp.status_code}). Попробуйте позже.")
         except Exception as e:
             print(f"[TG-BOT] Request error: {e}")
             await update.message.reply_text("Не удалось связаться с сервером. Попробуйте позже.")
