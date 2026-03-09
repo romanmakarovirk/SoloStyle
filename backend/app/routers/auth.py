@@ -141,8 +141,8 @@ def telegram_webhook(body: TelegramWebhookPayload, db: Client = Depends(get_supa
     """
     print(f"[AUTH] telegram-webhook: user={body.telegram_id}, token={body.auth_token[:8]}...")
 
-    # Verify the auth_token exists and is not expired
     try:
+        # Verify the auth_token exists and is not expired
         token_result = (
             db.table("auth_tokens")
             .select("*")
@@ -150,52 +150,69 @@ def telegram_webhook(body: TelegramWebhookPayload, db: Client = Depends(get_supa
             .maybe_single()
             .execute()
         )
+
+        if not token_result.data:
+            print(f"[AUTH] telegram-webhook: token NOT FOUND in DB")
+            raise HTTPException(status_code=404, detail="Auth token not found")
+
+        print(f"[AUTH] telegram-webhook: token found, expires_at={token_result.data.get('expires_at')}")
+
+        # Check expiry
+        expires_str = token_result.data["expires_at"]
+        # Handle Supabase TIMESTAMPTZ format
+        if expires_str:
+            expires_at = datetime.fromisoformat(expires_str.replace("+00:00", "+00:00"))
+            if datetime.now(timezone.utc) > expires_at:
+                raise HTTPException(status_code=410, detail="Auth token expired")
+
+        # Upsert user in users table
+        print(f"[AUTH] telegram-webhook: upserting user {body.telegram_id}...")
+        user_data = {
+            "telegram_id": body.telegram_id,
+            "first_name": body.first_name,
+            "last_name": body.last_name,
+            "username": body.username,
+            "photo_url": body.photo_url,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        existing = (
+            db.table("users")
+            .select("*")
+            .eq("telegram_id", body.telegram_id)
+            .maybe_single()
+            .execute()
+        )
+
+        if existing.data:
+            print(f"[AUTH] telegram-webhook: updating existing user")
+            db.table("users").update(user_data).eq("telegram_id", body.telegram_id).execute()
+        else:
+            print(f"[AUTH] telegram-webhook: inserting new user")
+            user_data["created_at"] = datetime.now(timezone.utc).isoformat()
+            db.table("users").insert(user_data).execute()
+
+        # Generate JWT
+        print(f"[AUTH] telegram-webhook: generating JWT...")
+        token = _create_jwt(body.telegram_id)
+
+        # Mark auth_token as completed
+        print(f"[AUTH] telegram-webhook: marking token as completed...")
+        db.table("auth_tokens").update({
+            "completed": True,
+            "jwt": token,
+        }).eq("auth_token", body.auth_token).execute()
+
+        print(f"[AUTH] telegram-webhook: SUCCESS")
+        return {"ok": True}
+
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"[AUTH] telegram-webhook DB error: {e}")
-        raise HTTPException(status_code=500, detail=f"DB error: {e}")
-
-    if not token_result.data:
-        print(f"[AUTH] telegram-webhook: token NOT FOUND in DB")
-        raise HTTPException(status_code=404, detail="Auth token not found")
-
-    expires_at = datetime.fromisoformat(token_result.data["expires_at"])
-    if datetime.now(timezone.utc) > expires_at:
-        raise HTTPException(status_code=410, detail="Auth token expired")
-
-    # Upsert user in users table
-    user_data = {
-        "telegram_id": body.telegram_id,
-        "first_name": body.first_name,
-        "last_name": body.last_name,
-        "username": body.username,
-        "photo_url": body.photo_url,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    existing = (
-        db.table("users")
-        .select("*")
-        .eq("telegram_id", body.telegram_id)
-        .maybe_single()
-        .execute()
-    )
-
-    if existing.data:
-        db.table("users").update(user_data).eq("telegram_id", body.telegram_id).execute()
-    else:
-        user_data["created_at"] = datetime.now(timezone.utc).isoformat()
-        db.table("users").insert(user_data).execute()
-
-    # Generate JWT
-    token = _create_jwt(body.telegram_id)
-
-    # Mark auth_token as completed
-    db.table("auth_tokens").update({
-        "completed": True,
-        "jwt": token,
-    }).eq("auth_token", body.auth_token).execute()
-
-    return {"ok": True}
+        import traceback
+        print(f"[AUTH] telegram-webhook CRASH: {e}")
+        print(f"[AUTH] traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {e}")
 
 
 @router.post("/validate", response_model=ValidateResponse)
