@@ -11,6 +11,7 @@ import SwiftData
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var authManager = AuthManager.shared
 
     @State private var currentStep = 0
     @State private var name = ""
@@ -18,7 +19,12 @@ struct OnboardingView: View {
     @State private var isAnimating = false
     @State private var confettiTrigger = false
 
-    private let totalSteps = 3
+    // If authenticated master: profile setup (steps 0,1), else: login screen
+    private var isMasterOnboarding: Bool {
+        authManager.isAuthenticated && authManager.selectedRole == .master
+    }
+
+    private var totalSteps: Int { isMasterOnboarding ? 2 : 1 }
 
     var body: some View {
         ZStack {
@@ -26,69 +32,12 @@ struct OnboardingView: View {
             AnimatedGradientBackground()
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Animated Progress Bar
-                AnimatedProgressBar(currentStep: currentStep, totalSteps: totalSteps)
-                    .padding(.horizontal, Design.Spacing.xl)
-                    .padding(.top, Design.Spacing.m)
-
-                // Content with page curl transition
-                ZStack {
-                    if currentStep == 0 {
-                        welcomeStep
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            ))
-                    } else if currentStep == 1 {
-                        profileStep
-                            .transition(.asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            ))
-                    } else {
-                        completeStep
-                            .transition(.asymmetric(
-                                insertion: .scale(scale: 0.8).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            ))
-                    }
-                }
-                .animation(Design.Animation.smooth, value: currentStep)
-
-                // Navigation
-                HStack(spacing: Design.Spacing.m) {
-                    if currentStep > 0 {
-                        GlassButton(title: L.back, icon: "chevron.left", style: .secondary) {
-                            HapticManager.impact(.light)
-                            withAnimation(Design.Animation.smooth) { currentStep -= 1 }
-                        }
-                        .transition(.move(edge: .leading).combined(with: .opacity))
-                    }
-
-                    Spacer()
-
-                    if currentStep < totalSteps - 1 {
-                        GlassButton(
-                            title: currentStep == 0 ? L.getStarted : L.continueText,
-                            icon: "arrow.right"
-                        ) {
-                            HapticManager.impact(.medium)
-                            withAnimation(Design.Animation.smooth) { currentStep += 1 }
-                        }
-                        .disabled(currentStep == 1 && name.isEmpty)
-                    } else {
-                        GlassButton(title: L.startUsingSoloStyle, icon: "sparkles") {
-                            HapticManager.notification(.success)
-                            confettiTrigger = true
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                completeOnboarding()
-                            }
-                        }
-                    }
-                }
-                .padding(Design.Spacing.m)
-                .animation(Design.Animation.smooth, value: currentStep)
+            if isMasterOnboarding {
+                // Master profile setup flow
+                masterOnboardingContent
+            } else {
+                // Telegram login screen
+                telegramLoginContent
             }
 
             // Confetti overlay
@@ -99,42 +48,135 @@ struct OnboardingView: View {
         }
         .onAppear {
             isAnimating = true
+            // Pre-fill name from Telegram if available
+            if let user = authManager.currentUser, name.isEmpty {
+                name = user.firstName
+                if let lastName = user.lastName {
+                    name += " \(lastName)"
+                }
+            }
         }
     }
 
-    // MARK: - Welcome Step
+    // MARK: - Telegram Login Content
 
-    private var welcomeStep: some View {
-        VStack(spacing: Design.Spacing.xl) {
-            Spacer()
+    private var telegramLoginContent: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: Design.Spacing.xl) {
+                Spacer()
 
-            // Animated Logo
-            AnimatedLogoView()
-                .animateOnAppear(delay: 0.1)
+                // Animated Logo
+                AnimatedLogoView()
+                    .animateOnAppear(delay: 0.1)
 
-            VStack(spacing: Design.Spacing.m) {
-                Text(L.welcomeTitle)
-                    .font(Design.Typography.largeTitle)
-                    .multilineTextAlignment(.center)
-                    .animateOnAppear(delay: 0.2)
+                VStack(spacing: Design.Spacing.m) {
+                    Text(L.welcomeTitle)
+                        .font(Design.Typography.largeTitle)
+                        .multilineTextAlignment(.center)
+                        .animateOnAppear(delay: 0.2)
 
-                Text(L.welcomeSubtitle)
-                    .font(Design.Typography.body)
-                    .foregroundStyle(Design.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .animateOnAppear(delay: 0.3)
+                    Text(L.welcomeSubtitle)
+                        .font(Design.Typography.body)
+                        .foregroundStyle(Design.Colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .animateOnAppear(delay: 0.3)
+                }
+
+                VStack(alignment: .leading, spacing: Design.Spacing.m) {
+                    AnimatedFeatureItem(icon: "calendar", text: L.featureManage, delay: 0.4)
+                    AnimatedFeatureItem(icon: "bell.badge", text: L.featureReminders, delay: 0.5)
+                    AnimatedFeatureItem(icon: "link", text: L.featureBooking, delay: 0.6)
+                }
+                .padding(.horizontal, Design.Spacing.xl)
+
+                Spacer()
             }
+            .padding(Design.Spacing.m)
 
-            VStack(alignment: .leading, spacing: Design.Spacing.m) {
-                AnimatedFeatureItem(icon: "calendar", text: L.featureManage, delay: 0.4)
-                AnimatedFeatureItem(icon: "bell.badge", text: L.featureReminders, delay: 0.5)
-                AnimatedFeatureItem(icon: "link", text: L.featureBooking, delay: 0.6)
+            // Telegram login button
+            VStack(spacing: Design.Spacing.s) {
+                if authManager.isAuthenticating {
+                    HStack(spacing: Design.Spacing.s) {
+                        ProgressView()
+                            .tint(.white)
+                        Text(L.waitingForTelegram)
+                            .font(Design.Typography.subheadline)
+                            .foregroundStyle(Design.Colors.textSecondary)
+                    }
+                    .padding(.vertical, Design.Spacing.m)
+                } else {
+                    GlassButton(title: L.continueWithTelegram, icon: "paperplane.fill") {
+                        HapticManager.impact(.medium)
+                        Task { await authManager.startTelegramAuth() }
+                    }
+                }
+
+                if let error = authManager.authError {
+                    Text(error)
+                        .font(Design.Typography.caption1)
+                        .foregroundStyle(.red.opacity(0.8))
+                }
             }
-            .padding(.horizontal, Design.Spacing.xl)
-
-            Spacer()
+            .padding(Design.Spacing.m)
+            .animation(Design.Animation.smooth, value: authManager.isAuthenticating)
         }
-        .padding(Design.Spacing.m)
+    }
+
+    // MARK: - Master Onboarding Content
+
+    private var masterOnboardingContent: some View {
+        VStack(spacing: 0) {
+            AnimatedProgressBar(currentStep: currentStep, totalSteps: totalSteps)
+                .padding(.horizontal, Design.Spacing.xl)
+                .padding(.top, Design.Spacing.m)
+
+            ZStack {
+                if currentStep == 0 {
+                    profileStep
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .trailing).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+                } else {
+                    completeStep
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.8).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        ))
+                }
+            }
+            .animation(Design.Animation.smooth, value: currentStep)
+
+            HStack(spacing: Design.Spacing.m) {
+                if currentStep > 0 {
+                    GlassButton(title: L.back, icon: "chevron.left", style: .secondary) {
+                        HapticManager.impact(.light)
+                        withAnimation(Design.Animation.smooth) { currentStep -= 1 }
+                    }
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+                }
+
+                Spacer()
+
+                if currentStep < totalSteps - 1 {
+                    GlassButton(title: L.continueText, icon: "arrow.right") {
+                        HapticManager.impact(.medium)
+                        withAnimation(Design.Animation.smooth) { currentStep += 1 }
+                    }
+                    .disabled(name.isEmpty)
+                } else {
+                    GlassButton(title: L.startUsingSoloStyle, icon: "sparkles") {
+                        HapticManager.notification(.success)
+                        confettiTrigger = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            completeOnboarding()
+                        }
+                    }
+                }
+            }
+            .padding(Design.Spacing.m)
+            .animation(Design.Animation.smooth, value: currentStep)
+        }
     }
 
     // MARK: - Profile Step
@@ -304,7 +346,7 @@ struct AnimatedLogoView: View {
             .foregroundStyle(Design.Colors.accentPrimary)
             .rotationEffect(.degrees(rotation))
             .frame(width: 140, height: 140)
-            .glassEffect(.regular.tint(Color.blue.opacity(0.2)), in: .rect(cornerRadius: 32))
+            .soloGlass(tint: Color.blue.opacity(0.2), shape: .roundedRect(32))
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.8)) {
                     rotation = -15
@@ -326,7 +368,7 @@ struct AnimatedFeatureItem: View {
                 .font(.system(size: 18))
                 .foregroundStyle(Design.Colors.accentPrimary)
                 .frame(width: 40, height: 40)
-                .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+                .soloGlass(tint: Color.blue.opacity(0.15), shape: .circle)
 
             Text(text)
                 .font(Design.Typography.body)
@@ -340,7 +382,7 @@ struct AnimatedFeatureItem: View {
                 .scaleEffect(isVisible ? 1 : 0.5)
         }
         .padding(Design.Spacing.s)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.m))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.m))
         .opacity(isVisible ? 1 : 0)
         .offset(x: isVisible ? 0 : -20)
         .onAppear {
@@ -367,7 +409,7 @@ struct AvatarPlaceholder: View {
             }
         }
         .frame(width: 100, height: 100)
-        .glassEffect(.regular.tint(Color.blue.opacity(0.3)), in: .circle)
+        .soloGlass(tint: Color.blue.opacity(0.3), shape: .circle)
         .animation(Design.Animation.smooth, value: name)
     }
 }
@@ -381,7 +423,7 @@ struct SuccessCheckmark: View {
             .font(.system(size: 50, weight: .bold))
             .foregroundStyle(Design.Colors.accentSuccess)
             .frame(width: 120, height: 120)
-            .glassEffect(.regular.tint(Color.green.opacity(0.2)), in: .circle)
+            .soloGlass(tint: Color.green.opacity(0.2), shape: .circle)
             .scaleEffect(checkmarkScale)
             .onAppear {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {

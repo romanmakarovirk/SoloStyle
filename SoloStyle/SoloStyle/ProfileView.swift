@@ -17,6 +17,8 @@ struct ProfileView: View {
     @State private var showingEditProfile = false
     @State private var showingAddService = false
     @State private var showingShareSheet = false
+    @State private var showingAnalytics = false
+    @State private var showingExport = false
     @State private var copiedLink = false
     @State private var selectedService: Service?
 
@@ -28,29 +30,45 @@ struct ProfileView: View {
                 Design.Colors.backgroundPrimary.ignoresSafeArea()
 
                 RefreshableScrollView(onRefresh: {
-                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    statsCache.invalidate()
+                    statsCache.refreshIfNeeded(context: modelContext)
+                    try? await Task.sleep(nanoseconds: 400_000_000)
                 }) {
                     VStack(spacing: Design.Spacing.l) {
-                        // Profile Header with parallax
-                        profileHeader
-                            .animateOnAppear(delay: 0.1)
+                        // Hero Card — avatar, name, stats
+                        heroCard
+                            .animateOnAppear(delay: 0.05)
 
-                        // Stats row
-                        statsRow
+                        // Earnings Dashboard
+                        earningsDashboard
+                            .padding(.horizontal, Design.Spacing.m)
+                            .animateOnAppear(delay: 0.15)
+
+                        // Quick Actions
+                        quickActionsStrip
                             .padding(.horizontal, Design.Spacing.m)
                             .animateOnAppear(delay: 0.2)
 
-                        // Earnings Dashboard
-                        earningsSection
-                            .padding(.horizontal, Design.Spacing.m)
-                            .animateOnAppear(delay: 0.3)
-
                         // Services
                         servicesSection
-                            .animateOnAppear(delay: 0.4)
+                            .animateOnAppear(delay: 0.25)
+
+                        // Work Schedule
+                        if master?.workSchedule != nil {
+                            workScheduleSection
+                                .padding(.horizontal, Design.Spacing.m)
+                                .animateOnAppear(delay: 0.3)
+                        }
+
+                        // Booking Link
+                        if let master {
+                            bookingLinkCard(master)
+                                .padding(.horizontal, Design.Spacing.m)
+                                .animateOnAppear(delay: 0.35)
+                        }
                     }
                     .padding(.vertical, Design.Spacing.m)
-                    .padding(.bottom, Design.Spacing.xxl)
+                    .padding(.bottom, 120)
                 }
             }
             .navigationTitle(L.profile)
@@ -66,11 +84,20 @@ struct ProfileView: View {
                     }
                 }
             }
+            .onAppear {
+                statsCache.refreshIfNeeded(context: modelContext)
+            }
             .sheet(isPresented: $showingEditProfile) {
                 EditProfileView(master: master)
             }
             .sheet(isPresented: $showingAddService) {
                 AddServiceView()
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                AnalyticsView()
+            }
+            .sheet(isPresented: $showingExport) {
+                ExportDataView()
             }
             .sheet(item: $selectedService) { service in
                 EditServiceView(service: service)
@@ -78,88 +105,137 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Profile Header
+    // MARK: - Hero Card
 
-    private var profileHeader: some View {
-        GlassCard(tint: Color.blue.opacity(0.1)) {
-            VStack(spacing: Design.Spacing.m) {
-                // Avatar with status
-                ZStack(alignment: .bottomTrailing) {
-                    ProfileAvatar(name: master?.name ?? "?", size: 100)
+    private var heroCard: some View {
+        GlassCard(tint: Color.blue.opacity(0.08)) {
+            VStack(spacing: 0) {
+                // Top: Avatar + Info
+                HStack(spacing: Design.Spacing.m) {
+                    // Avatar with online pulse
+                    ZStack(alignment: .bottomTrailing) {
+                        ProfileAvatar(name: master?.name ?? "?", size: 80)
 
-                    // Online status
-                    Circle()
-                        .fill(Design.Colors.accentSuccess)
-                        .frame(width: 24, height: 24)
-                        .overlay(
+                        // Online status dot
+                        ZStack {
+                            Circle()
+                                .fill(Design.Colors.accentSuccess)
+                                .frame(width: 20, height: 20)
                             Circle()
                                 .stroke(Design.Colors.backgroundPrimary, lineWidth: 3)
-                        )
-                }
-
-                VStack(spacing: Design.Spacing.xxs) {
-                    Text(master?.name ?? L.yourName)
-                        .font(Design.Typography.title2)
-                        .foregroundStyle(Design.Colors.textPrimary)
-
-                    if let businessName = master?.businessName {
-                        HStack(spacing: Design.Spacing.xxs) {
-                            Image(systemName: "building.2.fill")
-                                .font(.system(size: 12))
-                            Text(businessName)
+                                .frame(width: 20, height: 20)
                         }
-                        .font(Design.Typography.subheadline)
-                        .foregroundStyle(Design.Colors.textSecondary)
                     }
+
+                    VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                        Text(master?.name ?? L.yourName)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundStyle(Design.Colors.textPrimary)
+
+                        if let businessName = master?.businessName, !businessName.isEmpty {
+                            HStack(spacing: Design.Spacing.xxs) {
+                                Image(systemName: "building.2.fill")
+                                    .font(.system(size: 11))
+                                Text(businessName)
+                                    .font(.system(size: 14, weight: .medium))
+                            }
+                            .foregroundStyle(Design.Colors.textSecondary)
+                        }
+
+                        if let master {
+                            HStack(spacing: Design.Spacing.xxs) {
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 10))
+                                Text("\(L.memberSince) \(master.createdAt.formatted(.dateTime.month(.abbreviated).year()))")
+                                    .font(.system(size: 12))
+                            }
+                            .foregroundStyle(Design.Colors.textTertiary)
+                            .padding(.top, 2)
+                        }
+                    }
+
+                    Spacer()
                 }
 
+                // Divider
+                Rectangle()
+                    .fill(Design.Colors.textTertiary.opacity(0.15))
+                    .frame(height: 0.5)
+                    .padding(.vertical, Design.Spacing.m)
+
+                // Bottom: Stats row with large numbers
+                HStack(spacing: 0) {
+                    heroStat(
+                        value: "\(statsCache.clientCount)",
+                        label: L.clients,
+                        icon: "person.2.fill",
+                        color: .blue
+                    )
+
+                    // Separator
+                    Rectangle()
+                        .fill(Design.Colors.textTertiary.opacity(0.2))
+                        .frame(width: 0.5, height: 36)
+
+                    heroStat(
+                        value: "\(statsCache.appointmentCount)",
+                        label: L.appointments,
+                        icon: "calendar.badge.checkmark",
+                        color: .green
+                    )
+
+                    // Separator
+                    Rectangle()
+                        .fill(Design.Colors.textTertiary.opacity(0.2))
+                        .frame(width: 0.5, height: 36)
+
+                    heroStat(
+                        value: "\(services.count)",
+                        label: L.services,
+                        icon: "scissors",
+                        color: .purple
+                    )
+                }
             }
-            .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, Design.Spacing.m)
     }
 
-    // MARK: - Stats Row
-
-    private var statsRow: some View {
-        HStack(spacing: Design.Spacing.s) {
-            ProfileStatCard(
-                icon: "person.2.fill",
-                value: "\(statsCache.clientCount)",
-                label: L.clients,
-                color: .blue
-            )
-
-            ProfileStatCard(
-                icon: "calendar.badge.checkmark",
-                value: "\(statsCache.appointmentCount)",
-                label: L.appointments,
-                color: .green
-            )
-
-            ProfileStatCard(
-                icon: "scissors",
-                value: "\(services.count)",
-                label: L.services,
-                color: .purple
-            )
+    private func heroStat(value: String, label: String, icon: String, color: Color) -> some View {
+        VStack(spacing: Design.Spacing.xxs) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(color)
+                Text(value)
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(Design.Colors.textPrimary)
+                    .contentTransition(.numericText())
+            }
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Design.Colors.textTertiary)
         }
-        .onAppear {
-            statsCache.refreshIfNeeded(context: modelContext)
-        }
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Earnings Section
+    // MARK: - Earnings Dashboard
 
-    private var earningsSection: some View {
-        VStack(spacing: Design.Spacing.s) {
+    private var earningsDashboard: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.s) {
             HStack {
-                Text(L.earnings)
-                    .font(Design.Typography.headline)
+                HStack(spacing: Design.Spacing.xs) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Design.Colors.accentSuccess)
+                    Text(L.earnings)
+                        .font(Design.Typography.headline)
+                }
                 Spacer()
             }
 
             HStack(spacing: Design.Spacing.s) {
+                // This Month
                 EarningsCard(
                     title: L.thisMonth,
                     amount: statsCache.thisMonthEarnings,
@@ -167,89 +243,43 @@ struct ProfileView: View {
                     color: .green
                 )
 
+                // This Year
                 EarningsCard(
                     title: L.thisYear,
                     amount: statsCache.thisYearEarnings,
-                    icon: "chart.line.uptrend.xyaxis",
+                    icon: "chart.bar.fill",
                     color: .blue
                 )
             }
         }
     }
 
-    // MARK: - Booking Link
+    // MARK: - Quick Actions
 
-    private func bookingLinkCard(_ master: Master) -> some View {
-        GlassCard(tint: Color.green.opacity(0.1)) {
-            VStack(spacing: Design.Spacing.m) {
-                HStack {
-                    Image(systemName: "link.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Design.Colors.accentSuccess)
+    private var quickActionsStrip: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.s) {
+            Text(L.quickActions)
+                .font(Design.Typography.headline)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L.bookingLink)
-                            .font(Design.Typography.headline)
-                        Text(L.shareWithClients)
-                            .font(Design.Typography.caption1)
-                            .foregroundStyle(Design.Colors.textSecondary)
-                    }
-
-                    Spacer()
+            HStack(spacing: Design.Spacing.s) {
+                ProfileQuickAction(icon: "chart.pie.fill", label: L.viewAnalytics, color: .orange) {
+                    HapticManager.impact(.light)
+                    showingAnalytics = true
                 }
 
-                // Link display
-                HStack {
-                    Text("solostyle.app/book/\(master.publicSlug)")
-                        .font(Design.Typography.subheadline)
-                        .foregroundStyle(Design.Colors.textSecondary)
-                        .lineLimit(1)
-
-                    Spacer()
-
-                    if copiedLink {
-                        Label(L.copied, systemImage: "checkmark.circle.fill")
-                            .font(Design.Typography.caption1)
-                            .foregroundStyle(Design.Colors.accentSuccess)
-                            .transition(.scale.combined(with: .opacity))
-                    }
-                }
-                .padding(Design.Spacing.s)
-                .background(
-                    RoundedRectangle(cornerRadius: Design.Radius.s)
-                        .fill(Design.Colors.backgroundSecondary)
-                )
-
-                // Action buttons
-                HStack(spacing: Design.Spacing.s) {
-                    GlassButton(title: L.copyLink, icon: "doc.on.doc", style: .secondary, isFullWidth: true) {
-                        copyBookingLink(master)
-                    }
-
-                    GlassButton(title: L.share, icon: "square.and.arrow.up", isFullWidth: true) {
+                ProfileQuickAction(icon: "square.and.arrow.up.fill", label: L.shareProfile, color: .blue) {
+                    HapticManager.impact(.light)
+                    if let master {
                         shareBookingLink(master)
                     }
                 }
+
+                ProfileQuickAction(icon: "doc.text.fill", label: L.exportLabel, color: .purple) {
+                    HapticManager.impact(.light)
+                    showingExport = true
+                }
             }
         }
-    }
-
-    private func copyBookingLink(_ master: Master) {
-        UIPasteboard.general.string = "https://solostyle.app/book/\(master.publicSlug)"
-        HapticManager.notification(.success)
-        withAnimation {
-            copiedLink = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                copiedLink = false
-            }
-        }
-    }
-
-    private func shareBookingLink(_ master: Master) {
-        HapticManager.impact(.medium)
-        showingShareSheet = true
     }
 
     // MARK: - Services Section
@@ -257,8 +287,13 @@ struct ProfileView: View {
     private var servicesSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.s) {
             HStack {
-                Text(L.services)
-                    .font(Design.Typography.headline)
+                HStack(spacing: Design.Spacing.xs) {
+                    Image(systemName: "scissors")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.purple)
+                    Text(L.myServices)
+                        .font(Design.Typography.headline)
+                }
 
                 Spacer()
 
@@ -274,35 +309,11 @@ struct ProfileView: View {
             .padding(.horizontal, Design.Spacing.m)
 
             if services.isEmpty {
-                GlassCard(tint: Color.purple.opacity(0.05)) {
-                    VStack(spacing: Design.Spacing.m) {
-                        Image(systemName: "scissors")
-                            .font(.system(size: 32))
-                            .foregroundStyle(Design.Colors.textTertiary)
-
-                        Text(L.noServicesYet)
-                            .font(Design.Typography.subheadline)
-                            .foregroundStyle(Design.Colors.textSecondary)
-
-                        Button {
-                            showingAddService = true
-                        } label: {
-                            Text(L.addService)
-                                .font(Design.Typography.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, Design.Spacing.l)
-                                .padding(.vertical, Design.Spacing.s)
-                                .background(Design.Colors.accentPrimary, in: Capsule())
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, Design.Spacing.m)
-                }
-                .padding(.horizontal, Design.Spacing.m)
+                emptyServicesCard
+                    .padding(.horizontal, Design.Spacing.m)
             } else {
                 VStack(spacing: Design.Spacing.xs) {
-                    ForEach(services, id: \.id) { service in
+                    ForEach(Array(services.enumerated()), id: \.element.id) { index, service in
                         ServiceListItem(service: service) {
                             HapticManager.selection()
                             selectedService = service
@@ -312,6 +323,268 @@ struct ProfileView: View {
                 .padding(.horizontal, Design.Spacing.m)
             }
         }
+    }
+
+    private var emptyServicesCard: some View {
+        GlassCard(tint: Color.purple.opacity(0.05)) {
+            VStack(spacing: Design.Spacing.m) {
+                ZStack {
+                    Circle()
+                        .fill(Color.purple.opacity(0.1))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: "scissors")
+                        .font(.system(size: 28, weight: .light))
+                        .foregroundStyle(Color.purple.opacity(0.5))
+                }
+
+                VStack(spacing: Design.Spacing.xxs) {
+                    Text(L.noServicesYet)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(Design.Colors.textSecondary)
+
+                    Text(L.addServicesClients)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Design.Colors.textTertiary)
+                        .multilineTextAlignment(.center)
+                }
+
+                Button {
+                    HapticManager.impact(.medium)
+                    showingAddService = true
+                } label: {
+                    HStack(spacing: Design.Spacing.xs) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(L.addService)
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Design.Spacing.l)
+                    .padding(.vertical, Design.Spacing.s)
+                    .background(Design.Colors.accentPrimary, in: Capsule())
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Design.Spacing.s)
+        }
+    }
+
+    // MARK: - Work Schedule
+
+    private var workScheduleSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.s) {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.orange)
+                Text(L.workSchedule)
+                    .font(Design.Typography.headline)
+            }
+
+            if let schedule = master?.workSchedule {
+                GlassCard(tint: Color.orange.opacity(0.05), padding: Design.Spacing.s) {
+                    VStack(spacing: Design.Spacing.xxs) {
+                        ScheduleDayBar(day: "Пн", start: schedule.mondayStart, end: schedule.mondayEnd, isOff: false)
+                        ScheduleDayBar(day: "Вт", start: schedule.tuesdayStart, end: schedule.tuesdayEnd, isOff: false)
+                        ScheduleDayBar(day: "Ср", start: schedule.wednesdayStart, end: schedule.wednesdayEnd, isOff: false)
+                        ScheduleDayBar(day: "Чт", start: schedule.thursdayStart, end: schedule.thursdayEnd, isOff: false)
+                        ScheduleDayBar(day: "Пт", start: schedule.fridayStart, end: schedule.fridayEnd, isOff: false)
+                        ScheduleDayBar(day: "Сб", start: schedule.saturdayStart, end: schedule.saturdayEnd, isOff: false)
+                        ScheduleDayBar(day: "Вс", start: 0, end: 0, isOff: schedule.sundayOff)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Booking Link
+
+    private func bookingLinkCard(_ master: Master) -> some View {
+        GlassCard(tint: Color.green.opacity(0.08)) {
+            VStack(spacing: Design.Spacing.m) {
+                HStack(spacing: Design.Spacing.s) {
+                    Image(systemName: "link.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(Design.Colors.accentSuccess)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L.bookingLink)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                        Text(L.shareWithClients)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Design.Colors.textSecondary)
+                    }
+
+                    Spacer()
+
+                    if copiedLink {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Design.Colors.accentSuccess)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+
+                // Link display
+                HStack {
+                    Image(systemName: "globe")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Design.Colors.textTertiary)
+                    Text("solostyle.app/book/\(master.publicSlug)")
+                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                        .foregroundStyle(Design.Colors.textSecondary)
+                        .lineLimit(1)
+                    Spacer()
+                }
+                .padding(Design.Spacing.s)
+                .background(
+                    RoundedRectangle(cornerRadius: Design.Radius.s)
+                        .fill(Design.Colors.backgroundPrimary.opacity(0.5))
+                )
+
+                // Action buttons
+                HStack(spacing: Design.Spacing.s) {
+                    Button {
+                        copyBookingLink(master)
+                    } label: {
+                        HStack(spacing: Design.Spacing.xs) {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 13, weight: .medium))
+                            Text(L.copyLink)
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundStyle(Design.Colors.accentPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Design.Spacing.s)
+                        .soloGlass(tint: Color.blue.opacity(0.1), interactive: true, shape: .capsule)
+                    }
+
+                    Button {
+                        shareBookingLink(master)
+                    } label: {
+                        HStack(spacing: Design.Spacing.xs) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 13, weight: .medium))
+                            Text(L.share)
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Design.Spacing.s)
+                        .background(Design.Colors.accentSuccess, in: Capsule())
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func copyBookingLink(_ master: Master) {
+        UIPasteboard.general.string = "https://solostyle.app/book/\(master.publicSlug)"
+        HapticManager.notification(.success)
+        withAnimation(Design.Animation.smooth) {
+            copiedLink = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(Design.Animation.smooth) {
+                copiedLink = false
+            }
+        }
+    }
+
+    private func shareBookingLink(_ master: Master) {
+        HapticManager.impact(.medium)
+        showingShareSheet = true
+    }
+}
+
+// MARK: - Profile Quick Action Button
+
+struct ProfileQuickAction: View {
+    let icon: String
+    let label: String
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: Design.Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(color)
+
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Design.Colors.textSecondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Design.Spacing.m)
+            .soloGlass(tint: color.opacity(0.08), interactive: true, shape: .roundedRect(Design.Radius.l))
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+// MARK: - Schedule Day Bar
+
+struct ScheduleDayBar: View {
+    let day: String
+    let start: Int
+    let end: Int
+    let isOff: Bool
+
+    var body: some View {
+        HStack(spacing: Design.Spacing.s) {
+            Text(day)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundStyle(isOff ? Design.Colors.textTertiary : Design.Colors.textPrimary)
+                .frame(width: 24, alignment: .leading)
+
+            if isOff {
+                Capsule()
+                    .fill(Design.Colors.textTertiary.opacity(0.15))
+                    .frame(height: 8)
+                    .overlay(alignment: .center) {
+                        Text(L.closed)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+            } else {
+                // Visual time bar (0-24h range)
+                GeometryReader { geo in
+                    let totalWidth = geo.size.width
+                    let barStart = totalWidth * CGFloat(start) / 24.0
+                    let barWidth = totalWidth * CGFloat(end - start) / 24.0
+
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Design.Colors.textTertiary.opacity(0.1))
+                            .frame(height: 8)
+
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [.orange, .orange.opacity(0.6)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: max(barWidth, 4), height: 8)
+                            .offset(x: barStart)
+                    }
+                }
+                .frame(height: 8)
+
+                Text("\(start):00–\(end):00")
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(Design.Colors.textSecondary)
+                    .frame(width: 80, alignment: .trailing)
+            }
+        }
+        .padding(.vertical, 3)
     }
 }
 
@@ -324,28 +597,26 @@ struct EarningsCard: View {
     let color: Color
 
     private var formattedAmount: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: amount as NSDecimalNumber) ?? "$0"
+        CurrencyFormat.localized.string(from: amount as NSDecimalNumber) ?? "\(amount)"
     }
 
     var body: some View {
-        GlassCard(tint: color.opacity(0.1), padding: Design.Spacing.m) {
+        GlassCard(tint: color.opacity(0.08), padding: Design.Spacing.m) {
             VStack(alignment: .leading, spacing: Design.Spacing.s) {
-                HStack {
+                HStack(spacing: Design.Spacing.xs) {
                     Image(systemName: icon)
-                        .font(.system(size: 16))
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(color)
+                        .frame(width: 28, height: 28)
+                        .soloGlass(tint: color.opacity(0.15), shape: .circle)
 
                     Text(title)
-                        .font(Design.Typography.caption1)
+                        .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Design.Colors.textSecondary)
                 }
 
                 Text(formattedAmount)
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
                     .foregroundStyle(Design.Colors.textPrimary)
                     .contentTransition(.numericText())
             }
@@ -354,50 +625,55 @@ struct EarningsCard: View {
     }
 }
 
-// MARK: - Service List Item (New minimal design)
+// MARK: - Service List Item
 
 struct ServiceListItem: View {
     let service: Service
     let onTap: () -> Void
 
+    // Deterministic color based on service name
+    private var serviceColor: Color {
+        let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .green, .red, .indigo]
+        return palette[abs(service.name.hashValue) % palette.count]
+    }
+
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: Design.Spacing.m) {
-                // Icon
-                Circle()
-                    .fill(Design.Colors.accentPrimary.opacity(0.1))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        Image(systemName: "scissors")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Design.Colors.accentPrimary)
-                    )
+                // Colored icon
+                Image(systemName: "scissors")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(serviceColor)
+                    .frame(width: 40, height: 40)
+                    .soloGlass(tint: serviceColor.opacity(0.15), shape: .roundedRect(Design.Radius.m))
 
                 // Info
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(service.name)
-                        .font(Design.Typography.headline)
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Design.Colors.textPrimary)
 
-                    Text(service.formattedDuration)
-                        .font(Design.Typography.caption1)
-                        .foregroundStyle(Design.Colors.textTertiary)
+                    HStack(spacing: Design.Spacing.xs) {
+                        Label(service.formattedDuration, systemImage: "clock")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
                 }
 
                 Spacer()
 
                 // Price
                 Text(service.formattedPrice)
-                    .font(Design.Typography.headline)
-                    .foregroundStyle(Design.Colors.accentPrimary)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(serviceColor)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(Design.Colors.textTertiary)
             }
             .padding(Design.Spacing.m)
             .background(
-                RoundedRectangle(cornerRadius: Design.Radius.m)
+                RoundedRectangle(cornerRadius: Design.Radius.l)
                     .fill(Design.Colors.backgroundSecondary.opacity(0.5))
             )
         }
@@ -409,7 +685,7 @@ struct ServiceListItem: View {
 
 // ProfileAvatar is defined in GlassComponents.swift with Liquid Glass effect
 
-// MARK: - Profile Stat Card
+// MARK: - Profile Stat Card (kept for potential external use)
 
 struct ProfileStatCard: View {
     let icon: String
@@ -652,8 +928,6 @@ struct EditProfileView: View {
                         .confirmationDialog(L.choosePhoto, isPresented: $showingPhotoOptions) {
                             Button(L.takePhoto) {
                                 HapticManager.selection()
-                                // Camera functionality requires PhotoUI integration
-                                // For now, redirect to photo library
                                 showingImagePicker = true
                             }
                             Button(L.chooseFromLibrary) {
@@ -697,7 +971,6 @@ struct EditProfileView: View {
     }
 
     private func saveProfile() {
-        // Validate name
         guard InputValidator.isValidName(name) else {
             HapticManager.notification(.error)
             return
@@ -706,7 +979,6 @@ struct EditProfileView: View {
         isLoading = true
         HapticManager.impact(.medium)
 
-        // Sanitize inputs
         let sanitizedName = InputValidator.sanitize(name)
         let sanitizedBusinessName = InputValidator.sanitize(businessName)
 
@@ -800,7 +1072,6 @@ struct AddServiceView: View {
     }
 
     private func saveService() {
-        // Validate inputs
         guard InputValidator.isValidName(name) else {
             HapticManager.notification(.error)
             return
@@ -813,13 +1084,12 @@ struct AddServiceView: View {
         isLoading = true
         HapticManager.impact(.medium)
 
-        // Sanitize name
         let sanitizedName = InputValidator.sanitize(name)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             let service = Service(name: sanitizedName, price: priceValue, duration: duration)
             modelContext.insert(service)
-            StatsCache.shared.invalidate() // Invalidate stats cache
+            StatsCache.shared.invalidate()
             HapticManager.notification(.success)
             dismiss()
         }
@@ -1019,7 +1289,6 @@ struct EditServiceView: View {
     }
 
     private func saveChanges() {
-        // Validate inputs
         guard InputValidator.isValidName(name) else {
             HapticManager.notification(.error)
             return
@@ -1044,7 +1313,7 @@ struct EditServiceView: View {
     private func deleteService() {
         HapticManager.notification(.warning)
         modelContext.delete(service)
-        StatsCache.shared.invalidate() // Invalidate stats cache
+        StatsCache.shared.invalidate()
         dismiss()
     }
 }

@@ -59,7 +59,7 @@ struct SettingsView: View {
                                 showingLanguageSheet = true
                             }
                         }
-                        .animateOnAppear(delay: 0.2)
+                        .animateOnAppearSubtle(delay: 0.05)
 
                         settingsSection(title: L.data) {
                             settingsRow(
@@ -71,7 +71,7 @@ struct SettingsView: View {
                                 HapticManager.selection()
                             }
                         }
-                        .animateOnAppear(delay: 0.3)
+                        .animateOnAppearSubtle(delay: 0.08)
 
                         settingsSection(title: L.support) {
                             settingsRow(
@@ -120,7 +120,7 @@ struct SettingsView: View {
                                 showingPrivacyPolicy = true
                             }
                         }
-                        .animateOnAppear(delay: 0.5)
+                        .animateOnAppearSubtle(delay: 0.1)
 
                         #if DEBUG
                         settingsSection(title: L.developer) {
@@ -147,12 +147,12 @@ struct SettingsView: View {
                                 .padding(Design.Spacing.m)
                             }
                         }
-                        .animateOnAppear(delay: 0.6)
+                        .animateOnAppearSubtle(delay: 0.12)
                         #endif
 
                         // Footer
                         footerSection
-                            .animateOnAppear(delay: 0.7)
+                            .animateOnAppearSubtle(delay: 0.14)
                     }
                     .padding(Design.Spacing.m)
                     .padding(.bottom, Design.Spacing.xxl * 2)

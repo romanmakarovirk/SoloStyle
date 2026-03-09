@@ -136,19 +136,22 @@ final class LiveActivityManager {
         updateTimer?.invalidate()
 
         updateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                let now = Date()
-                let remaining = Int(endTime.timeIntervalSince(now) / 60)
-                let elapsed = totalMinutes - remaining
-                let progress = Double(elapsed) / Double(max(1, totalMinutes))
-
-                if remaining <= 0 {
-                    self.endActivity()
-                } else {
-                    self.updateActivity(minutesRemaining: remaining, progress: progress)
-                }
+            MainActor.assumeIsolated {
+                self?.handleTimerTick(endTime: endTime, totalMinutes: totalMinutes)
             }
+        }
+    }
+
+    private func handleTimerTick(endTime: Date, totalMinutes: Int) {
+        let now = Date()
+        let remaining = Int(endTime.timeIntervalSince(now) / 60)
+        let elapsed = totalMinutes - remaining
+        let progress = Double(elapsed) / Double(max(1, totalMinutes))
+
+        if remaining <= 0 {
+            endActivity()
+        } else {
+            updateActivity(minutesRemaining: remaining, progress: progress)
         }
     }
 }

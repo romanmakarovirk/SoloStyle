@@ -91,7 +91,6 @@ struct ClientsView: View {
                     }
 
                     if clients.isEmpty {
-                        Spacer()
                         EmptyStateView(
                             icon: "person.2.fill",
                             title: L.noClientsYet,
@@ -99,7 +98,8 @@ struct ClientsView: View {
                             actionTitle: L.addClient,
                             action: { showingAddClient = true }
                         )
-                        Spacer()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .offset(y: -40)
                     } else {
                         // Client list
                         RefreshableScrollView(onRefresh: {
@@ -210,14 +210,24 @@ struct ClientsView: View {
     // MARK: - Filter Chips
 
     private var filterChipsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        // Compute all filter counts in one pass instead of 4 separate filters
+        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+        var recentCount = 0, frequentCount = 0, newCount = 0
+        for c in clients {
+            if c.appointments.isEmpty { newCount += 1 }
+            if c.appointments.count >= 3 { frequentCount += 1 }
+            if c.appointments.contains(where: { $0.date > thirtyDaysAgo }) { recentCount += 1 }
+        }
+        let counts: [ClientFilter: Int] = [.all: clients.count, .recent: recentCount, .frequent: frequentCount, .new: newCount]
+
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Design.Spacing.xs) {
                 ForEach(ClientFilter.allCases, id: \.self) { filter in
                     FilterChip(
                         title: filter.title,
                         icon: filter.icon,
                         isSelected: selectedFilter == filter,
-                        count: countForFilter(filter)
+                        count: counts[filter] ?? 0
                     ) {
                         withAnimation(Design.Animation.smooth) {
                             selectedFilter = filter
@@ -252,39 +262,26 @@ struct ClientsView: View {
     }
 
     private var noResultsView: some View {
-        VStack(spacing: Design.Spacing.m) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 40))
-                .foregroundStyle(Design.Colors.textTertiary)
+        GlassCard(tint: Color.white.opacity(0.05)) {
+            VStack(spacing: Design.Spacing.m) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 40))
+                    .foregroundStyle(Design.Colors.textTertiary)
 
-            Text(L.noResultsFor(debouncedSearchText))
-                .font(Design.Typography.headline)
-                .foregroundStyle(Design.Colors.textSecondary)
+                Text(L.noResultsFor(debouncedSearchText))
+                    .font(Design.Typography.headline)
+                    .foregroundStyle(Design.Colors.textSecondary)
 
-            Text(L.tryDifferentSearch)
-                .font(Design.Typography.caption1)
-                .foregroundStyle(Design.Colors.textTertiary)
+                Text(L.tryDifferentSearch)
+                    .font(Design.Typography.caption1)
+                    .foregroundStyle(Design.Colors.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Design.Spacing.l)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, Design.Spacing.xxl)
     }
 
     // MARK: - Helpers
-
-    private func countForFilter(_ filter: ClientFilter) -> Int {
-        switch filter {
-        case .all: return clients.count
-        case .recent:
-            let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
-            return clients.filter { client in
-                client.appointments.contains { $0.date > thirtyDaysAgo }
-            }.count
-        case .frequent:
-            return clients.filter { $0.appointments.count >= 3 }.count
-        case .new:
-            return clients.filter { $0.appointments.isEmpty }.count
-        }
-    }
 
     private func deleteClient(_ client: Client) {
         HapticManager.notification(.warning)
@@ -354,17 +351,14 @@ struct FilterChip: View {
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(isSelected ? Color.white.opacity(0.2) : Design.Colors.backgroundSecondary)
+                                .fill(Color.white.opacity(isSelected ? 0.25 : 0.12))
                         )
                 }
             }
             .foregroundStyle(isSelected ? .white : Design.Colors.textSecondary)
             .padding(.horizontal, Design.Spacing.m)
             .padding(.vertical, Design.Spacing.xs)
-            .background(
-                Capsule()
-                    .fill(isSelected ? Design.Colors.accentPrimary : Design.Colors.backgroundSecondary)
-            )
+            .soloGlass(tint: isSelected ? Color.blue.opacity(0.5) : Color.white.opacity(0.1), shape: .capsule)
         }
         .buttonStyle(.plain)
     }
@@ -384,6 +378,9 @@ struct StatPill: View {
                 .font(Design.Typography.caption2)
                 .foregroundStyle(Design.Colors.textTertiary)
         }
+        .padding(.horizontal, Design.Spacing.s)
+        .padding(.vertical, Design.Spacing.xxs)
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .capsule)
     }
 }
 
@@ -467,11 +464,7 @@ struct ClientCard: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Design.Colors.textTertiary)
                 }
-                .padding(Design.Spacing.m)
-                .background(
-                    RoundedRectangle(cornerRadius: Design.Radius.l)
-                        .fill(Design.Colors.backgroundSecondary.opacity(0.5))
-                )
+                .padding(Design.Spacing.s)
             }
             .buttonStyle(ScaleButtonStyle())
         }
@@ -509,7 +502,7 @@ struct LoyaltyBadge: View {
             .font(.system(size: size.iconSize, weight: .bold))
             .foregroundStyle(.white)
             .frame(width: size.frameSize, height: size.frameSize)
-            .background(tier.color, in: Circle())
+            .soloGlass(tint: tier.color.opacity(0.7), shape: .circle)
             .overlay(
                 Circle()
                     .stroke(Design.Colors.backgroundPrimary, lineWidth: 2)
@@ -942,10 +935,7 @@ struct AppointmentMiniCard: View {
                 .foregroundStyle(appointment.status.color)
         }
         .padding(Design.Spacing.s)
-        .background(
-            RoundedRectangle(cornerRadius: Design.Radius.s)
-                .fill(Design.Colors.backgroundSecondary.opacity(0.5))
-        )
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.s))
     }
 }
 
@@ -971,10 +961,7 @@ struct QuickActionButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(Design.Spacing.m)
-            .background(
-                RoundedRectangle(cornerRadius: Design.Radius.m)
-                    .fill(color.opacity(0.1))
-            )
+            .soloGlass(tint: color.opacity(0.1), interactive: true, shape: .roundedRect(Design.Radius.m))
         }
         .buttonStyle(ScaleButtonStyle())
     }

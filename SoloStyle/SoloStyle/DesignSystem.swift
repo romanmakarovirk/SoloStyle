@@ -131,6 +131,11 @@ extension View {
         self.modifier(AppearAnimationModifier(delay: delay))
     }
 
+    /// Subtle animate appearance (smaller offset for less dramatic entry)
+    func animateOnAppearSubtle(delay: Double = 0) -> some View {
+        self.modifier(SubtleAppearAnimationModifier(delay: delay))
+    }
+
     /// Shake animation for errors
     func shake(_ shake: Bool) -> some View {
         self.modifier(ShakeModifier(shake: shake))
@@ -151,6 +156,21 @@ struct AppearAnimationModifier: ViewModifier {
         content
             .opacity(isVisible ? 1 : 0)
             .offset(y: isVisible ? 0 : 20)
+            .animation(Design.Animation.smooth.delay(delay), value: isVisible)
+            .onAppear {
+                isVisible = true
+            }
+    }
+}
+
+struct SubtleAppearAnimationModifier: ViewModifier {
+    let delay: Double
+    @State private var isVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .offset(y: isVisible ? 0 : 6)
             .animation(Design.Animation.smooth.delay(delay), value: isVisible)
             .onAppear {
                 isVisible = true

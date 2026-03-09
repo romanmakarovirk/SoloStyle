@@ -138,7 +138,7 @@ struct AIAssistantView: View {
             .font(.system(size: 28, weight: .semibold))
             .foregroundStyle(Design.Colors.accentPrimary)
             .frame(width: 64, height: 64)
-            .glassEffect(.regular.tint(Color.blue.opacity(0.2)), in: .circle)
+            .soloGlass(tint: Color.blue.opacity(0.2), shape: .circle)
             .symbolEffect(.breathe.pulse.byLayer, options: .repeating)
     }
 
@@ -161,7 +161,7 @@ struct AIAssistantView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Design.Spacing.s)
                 }
-                .glassEffect(.regular.tint(action.colors[0].opacity(0.15)).interactive(), in: .capsule)
+                .soloGlass(tint: action.colors[0].opacity(0.15), interactive: true, shape: .capsule)
             }
         }
     }
@@ -178,7 +178,7 @@ struct AIAssistantView: View {
         }
         .padding(.horizontal, Design.Spacing.s)
         .padding(.vertical, Design.Spacing.xs)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .capsule)
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .capsule)
     }
 
     // MARK: - Messages
@@ -290,7 +290,7 @@ struct AIAssistantView: View {
             }
             .padding(.horizontal, Design.Spacing.m)
             .padding(.vertical, Design.Spacing.s)
-            .glassEffect(.regular.tint(Color.white.opacity(0.08)), in: .capsule)
+            .soloGlass(tint: Color.white.opacity(0.08), shape: .capsule)
         }
         .padding(.horizontal, Design.Spacing.m)
         .padding(.vertical, Design.Spacing.xs)
@@ -398,7 +398,7 @@ struct MessageRow: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.blue)
                     .frame(width: 30, height: 30)
-                    .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+                    .soloGlass(tint: Color.blue.opacity(0.15), shape: .circle)
             }
 
             if message.isFromUser {
@@ -426,6 +426,34 @@ struct MessageRow: View {
 
             if !message.isFromUser { Spacer(minLength: 16) }
         }
+    }
+}
+
+// MARK: - Shared Master Helpers (deduplicated — used by MasterCard, BookMasterSheet, MasterMapPin, MastersMapView)
+
+private let _masterAvatarPalette: [Color] = [.blue, .purple, .pink, .orange, .teal]
+
+extension MasterResult {
+    /// Two-letter initials from the master name
+    var initials: String {
+        let parts = masterName.split(separator: " ")
+        if parts.count >= 2 {
+            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
+        }
+        return String(masterName.prefix(2)).uppercased()
+    }
+
+    /// Deterministic gradient based on the master name hash
+    var avatarGradient: LinearGradient {
+        let hash = abs(masterName.hashValue)
+        let c1 = _masterAvatarPalette[hash % _masterAvatarPalette.count]
+        let c2 = _masterAvatarPalette[(hash / _masterAvatarPalette.count) % _masterAvatarPalette.count]
+        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    /// Primary color (first gradient stop)
+    var primaryColor: Color {
+        _masterAvatarPalette[abs(masterName.hashValue) % _masterAvatarPalette.count]
     }
 }
 
@@ -469,11 +497,11 @@ struct MasterCard: View {
                 // Top row: avatar + name + rating
                 HStack(spacing: Design.Spacing.s) {
                     // Avatar
-                    Text(initials(master.masterName))
+                    Text(master.initials)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 40, height: 40)
-                        .background(avatarGradient, in: .circle)
+                        .background(master.avatarGradient, in: .circle)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(master.masterName)
@@ -499,7 +527,7 @@ struct MasterCard: View {
                     }
                     .padding(.horizontal, Design.Spacing.xs)
                     .padding(.vertical, Design.Spacing.xxs)
-                    .glassEffect(.regular.tint(Color.orange.opacity(0.1)), in: .capsule)
+                    .soloGlass(tint: Color.orange.opacity(0.1), shape: .capsule)
                 }
 
                 // Divider
@@ -571,7 +599,7 @@ struct MasterCard: View {
                 .padding(.top, Design.Spacing.s)
             }
             .padding(Design.Spacing.m)
-            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+            .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.l))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showingBooking) {
@@ -581,21 +609,6 @@ struct MasterCard: View {
         }
     }
 
-    private var avatarGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
-        let hash = abs(master.masterName.hashValue)
-        let c1 = colors[hash % colors.count]
-        let c2 = colors[(hash / colors.count) % colors.count]
-        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
-
-    private func initials(_ name: String) -> String {
-        let parts = name.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
-        }
-        return String(name.prefix(2)).uppercased()
-    }
 }
 
 // MARK: - Book Master Sheet
@@ -618,14 +631,6 @@ struct BookMasterSheet: View {
 
     private var canBook: Bool {
         !clientName.trimmingCharacters(in: .whitespaces).isEmpty
-    }
-
-    private var avatarGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
-        let hash = abs(master.masterName.hashValue)
-        let c1 = colors[hash % colors.count]
-        let c2 = colors[(hash / colors.count) % colors.count]
-        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
     var body: some View {
@@ -693,11 +698,11 @@ struct BookMasterSheet: View {
     private var masterInfoCard: some View {
         HStack(spacing: Design.Spacing.m) {
             // Avatar
-            Text(initials(master.masterName))
+            Text(master.initials)
                 .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 56, height: 56)
-                .background(avatarGradient, in: .circle)
+                .background(master.avatarGradient, in: .circle)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
                 Text(master.masterName)
@@ -736,7 +741,7 @@ struct BookMasterSheet: View {
             Spacer()
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.xl))
     }
 
     // MARK: - Date Time Section
@@ -748,7 +753,7 @@ struct BookMasterSheet: View {
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(Design.Colors.accentPrimary)
                     .frame(width: 32, height: 32)
-                    .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+                    .soloGlass(tint: Color.blue.opacity(0.15), shape: .circle)
 
                 Text(L.selectDateTime)
                     .font(.system(size: 14, weight: .medium))
@@ -767,7 +772,7 @@ struct BookMasterSheet: View {
             .tint(Design.Colors.accentPrimary)
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.xl))
     }
 
     // MARK: - Client Info Section
@@ -786,7 +791,7 @@ struct BookMasterSheet: View {
                     .focused($focusedField, equals: .name)
             }
             .padding(Design.Spacing.m)
-            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+            .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.l))
 
             HStack(spacing: Design.Spacing.s) {
                 Image(systemName: "phone.fill")
@@ -801,7 +806,7 @@ struct BookMasterSheet: View {
                     .focused($focusedField, equals: .phone)
             }
             .padding(Design.Spacing.m)
-            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+            .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.l))
         }
     }
 
@@ -821,7 +826,7 @@ struct BookMasterSheet: View {
                 .focused($focusedField, equals: .comment)
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.l))
     }
 
     // MARK: - Confirm Button
@@ -898,7 +903,7 @@ struct BookMasterSheet: View {
                 summaryRow(icon: "rublesign.circle.fill", label: L.priceLabel, value: master.formattedPrice, tint: .green)
             }
             .padding(Design.Spacing.m)
-            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+            .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.xl))
             .padding(.horizontal, Design.Spacing.m)
             .animateOnAppear(delay: 0.2)
 
@@ -930,7 +935,7 @@ struct BookMasterSheet: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(tint)
                 .frame(width: 28, height: 28)
-                .glassEffect(.regular.tint(tint.opacity(0.15)), in: .circle)
+                .soloGlass(tint: tint.opacity(0.15), shape: .circle)
 
             Text(label)
                 .font(.system(size: 13))
@@ -995,13 +1000,6 @@ struct BookMasterSheet: View {
         }
     }
 
-    private func initials(_ name: String) -> String {
-        let parts = name.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
-        }
-        return String(name.prefix(2)).uppercased()
-    }
 }
 
 // MARK: - Masters Map View
@@ -1067,7 +1065,7 @@ struct MastersMapView: View {
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(.teal)
                         .frame(width: 32, height: 32)
-                        .glassEffect(.regular.tint(Color.teal.opacity(0.15)), in: .circle)
+                        .soloGlass(tint: Color.teal.opacity(0.15), shape: .circle)
 
                     Text(L.mastersOnMap)
                         .font(.system(size: 15, weight: .semibold))
@@ -1079,7 +1077,7 @@ struct MastersMapView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(Design.Colors.textTertiary)
                         .frame(width: 28, height: 28)
-                        .glassEffect(.regular.tint(Color.white.opacity(0.08)), in: .circle)
+                        .soloGlass(tint: Color.white.opacity(0.08), shape: .circle)
                 }
             }
 
@@ -1093,7 +1091,7 @@ struct MastersMapView: View {
                 .animation(Design.Animation.smooth, value: isExpanded)
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.xl))
     }
 
     private var mapContent: some View {
@@ -1142,7 +1140,7 @@ struct MastersMapView: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 28, height: 28)
-                        .background(masterGradient(for: master), in: .circle)
+                        .background(master.avatarGradient, in: .circle)
 
                     VStack(alignment: .leading, spacing: 1) {
                         Text(master.masterName)
@@ -1166,7 +1164,7 @@ struct MastersMapView: View {
                 }
                 .padding(.horizontal, Design.Spacing.m)
                 .padding(.vertical, Design.Spacing.s)
-                .glassEffect(.regular.tint(Color.white.opacity(0.2)), in: .capsule)
+                .soloGlass(tint: Color.white.opacity(0.2), shape: .capsule)
                 .padding(.horizontal, Design.Spacing.s)
                 .padding(.bottom, Design.Spacing.s)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -1174,13 +1172,6 @@ struct MastersMapView: View {
         }
     }
 
-    private func masterGradient(for master: MasterResult) -> LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
-        let hash = abs(master.masterName.hashValue)
-        let c1 = colors[hash % colors.count]
-        let c2 = colors[(hash / colors.count) % colors.count]
-        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
 }
 
 // MARK: - Master Map Pin
@@ -1195,18 +1186,18 @@ struct MasterMapPin: View {
                 // Outer glow when selected
                 if isSelected {
                     Circle()
-                        .fill(pinColor.opacity(0.25))
+                        .fill(master.primaryColor.opacity(0.25))
                         .frame(width: 44, height: 44)
                 }
 
                 // Main pin circle
                 Circle()
-                    .fill(pinGradient)
+                    .fill(master.avatarGradient)
                     .frame(width: isSelected ? 36 : 30, height: isSelected ? 36 : 30)
-                    .shadow(color: pinColor.opacity(0.4), radius: isSelected ? 8 : 4, y: 2)
+                    .shadow(color: master.primaryColor.opacity(0.4), radius: isSelected ? 8 : 4, y: 2)
 
                 // Initials
-                Text(initials)
+                Text(master.initials)
                     .font(.system(size: isSelected ? 13 : 11, weight: .bold))
                     .foregroundStyle(.white)
             }
@@ -1225,33 +1216,13 @@ struct MasterMapPin: View {
         .animation(Design.Animation.bouncy, value: isSelected)
     }
 
-    private var initials: String {
-        let parts = master.masterName.split(separator: " ")
-        if parts.count >= 2 {
-            return "\(parts[0].prefix(1))\(parts[1].prefix(1))".uppercased()
-        }
-        return String(master.masterName.prefix(2)).uppercased()
-    }
-
-    private var pinColor: Color {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
-        return colors[abs(master.masterName.hashValue) % colors.count]
-    }
-
-    private var pinGradient: LinearGradient {
-        let colors: [Color] = [.blue, .purple, .pink, .orange, .teal]
-        let hash = abs(master.masterName.hashValue)
-        let c1 = colors[hash % colors.count]
-        let c2 = colors[(hash / colors.count) % colors.count]
-        return LinearGradient(colors: [c1, c2], startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
 }
 
 // MARK: - Typing Indicator
 
 struct TypingRow: View {
     @State private var currentDot = 0
-    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
+    @State private var timerTask: Task<Void, Never>?
 
     var body: some View {
         HStack(alignment: .top, spacing: Design.Spacing.xs) {
@@ -1259,7 +1230,7 @@ struct TypingRow: View {
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(.blue)
                 .frame(width: 30, height: 30)
-                .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+                .soloGlass(tint: Color.blue.opacity(0.15), shape: .circle)
 
             HStack(spacing: 4) {
                 ForEach(0..<3) { i in
@@ -1276,8 +1247,18 @@ struct TypingRow: View {
 
             Spacer()
         }
-        .onReceive(timer) { _ in
-            currentDot = (currentDot + 1) % 3
+        .onAppear {
+            timerTask = Task {
+                while !Task.isCancelled {
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    guard !Task.isCancelled else { break }
+                    currentDot = (currentDot + 1) % 3
+                }
+            }
+        }
+        .onDisappear {
+            timerTask?.cancel()
+            timerTask = nil
         }
     }
 }

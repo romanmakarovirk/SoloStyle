@@ -86,7 +86,7 @@ struct CalendarView: View {
                                             .fill(Design.Colors.accentSuccess)
                                             .shadow(color: Design.Colors.accentSuccess.opacity(0.35), radius: 10, y: 4)
                                     )
-                                    .glassEffect(.regular.tint(Color.green.opacity(0.3)), in: .circle)
+                                    .soloGlass(tint: Color.green.opacity(0.3), shape: .circle)
                             }
 
                             // Plus FAB — manual add
@@ -103,7 +103,7 @@ struct CalendarView: View {
                                             .fill(Design.Colors.accentPrimary)
                                             .shadow(color: Design.Colors.accentPrimary.opacity(0.35), radius: 12, y: 6)
                                     )
-                                    .glassEffect(.regular.tint(Color.blue.opacity(0.3)), in: .circle)
+                                    .soloGlass(tint: Color.blue.opacity(0.3), shape: .circle)
                             }
                         }
                         .padding(.trailing, Design.Spacing.l)
@@ -171,7 +171,7 @@ struct CalendarView: View {
                             .foregroundStyle(Design.Colors.accentPrimary)
                             .padding(.horizontal, Design.Spacing.s)
                             .padding(.vertical, Design.Spacing.xxs + 2)
-                            .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .capsule)
+                            .soloGlass(tint: Color.blue.opacity(0.15), shape: .capsule)
                     }
                 }
             }
@@ -225,7 +225,7 @@ struct CalendarView: View {
         }
         .padding(.vertical, Design.Spacing.xs)
         .padding(.horizontal, Design.Spacing.xxs)
-        .glassEffect(.regular.tint(Color.blue.opacity(0.08)), in: .rect(cornerRadius: Design.Radius.xl))
+        .soloGlass(tint: Color.blue.opacity(0.08), shape: .roundedRect(Design.Radius.xl))
         .padding(.horizontal, Design.Spacing.s)
     }
 
@@ -248,7 +248,7 @@ struct CalendarView: View {
         }
         .padding(.horizontal, Design.Spacing.m)
         .padding(.vertical, Design.Spacing.s)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .capsule)
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .capsule)
         .padding(.horizontal, Design.Spacing.m)
     }
 
@@ -272,7 +272,7 @@ struct CalendarView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, Design.Spacing.xxl)
-        .glassEffect(.regular.tint(Color.white.opacity(0.03)), in: .rect(cornerRadius: Design.Radius.xl))
+        .soloGlass(tint: Color.white.opacity(0.03), shape: .roundedRect(Design.Radius.xl))
     }
 
     // MARK: - Helpers
@@ -456,7 +456,7 @@ struct AppointmentRow: View {
             }
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.l))
         .onTapGesture {
             HapticManager.impact(.light)
             withAnimation(Design.Animation.smooth) {
@@ -589,7 +589,7 @@ struct AddAppointmentView: View {
                                     .font(.system(size: 18, weight: .medium))
                                     .foregroundStyle(Design.Colors.accentPrimary)
                                     .frame(width: 36, height: 36)
-                                    .glassEffect(.regular.tint(Color.blue.opacity(0.15)), in: .circle)
+                                    .soloGlass(tint: Color.blue.opacity(0.15), shape: .circle)
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Дата и время")
@@ -618,7 +618,7 @@ struct AddAppointmentView: View {
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundStyle(.purple)
                                         .frame(width: 36, height: 36)
-                                        .glassEffect(.regular.tint(Color.purple.opacity(0.15)), in: .circle)
+                                        .soloGlass(tint: Color.purple.opacity(0.15), shape: .circle)
 
                                     Text("Услуга")
                                         .font(Design.Typography.caption1)
@@ -663,7 +663,7 @@ struct AddAppointmentView: View {
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundStyle(.orange)
                                         .frame(width: 36, height: 36)
-                                        .glassEffect(.regular.tint(Color.orange.opacity(0.15)), in: .circle)
+                                        .soloGlass(tint: Color.orange.opacity(0.15), shape: .circle)
 
                                     Text("Клиент")
                                         .font(Design.Typography.caption1)
@@ -686,10 +686,7 @@ struct AddAppointmentView: View {
                                             .font(.system(size: 13, weight: .semibold))
                                             .foregroundStyle(showingNewClient ? Design.Colors.textTertiary : Design.Colors.accentPrimary)
                                             .frame(width: 30, height: 30)
-                                            .glassEffect(
-                                                .regular.tint(showingNewClient ? Color.gray.opacity(0.1) : Color.blue.opacity(0.15)),
-                                                in: .circle
-                                            )
+                                            .soloGlass(tint: showingNewClient ? Color.gray.opacity(0.1) : Color.blue.opacity(0.15), shape: .circle)
                                     }
                                 }
 
@@ -784,7 +781,7 @@ struct AddAppointmentView: View {
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundStyle(.mint)
                                         .frame(width: 36, height: 36)
-                                        .glassEffect(.regular.tint(Color.mint.opacity(0.15)), in: .circle)
+                                        .soloGlass(tint: Color.mint.opacity(0.15), shape: .circle)
 
                                     Text("Заметки")
                                         .font(Design.Typography.caption1)
@@ -903,7 +900,7 @@ struct AddAppointmentView: View {
         content()
             .padding(Design.Spacing.m)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.xl))
+            .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.xl))
             .animateOnAppear(delay: delay)
     }
 

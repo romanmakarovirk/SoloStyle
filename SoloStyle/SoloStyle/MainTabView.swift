@@ -23,20 +23,27 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Tab Content
-            Group {
-                switch selectedTab {
-                case .calendar:
-                    CalendarView()
-                case .clients:
-                    ClientsView()
-                case .ai:
-                    AIAssistantView(tabBarHeight: tabBarHeight)
-                case .profile:
-                    ProfileView()
-                case .settings:
-                    SettingsView()
-                }
+            // Tab Content — all tabs stay alive so onAppear animations fire only once
+            ZStack {
+                CalendarView()
+                    .opacity(selectedTab == .calendar ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .calendar)
+
+                ClientsView()
+                    .opacity(selectedTab == .clients ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .clients)
+
+                AIAssistantView(tabBarHeight: tabBarHeight)
+                    .opacity(selectedTab == .ai ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .ai)
+
+                ProfileView()
+                    .opacity(selectedTab == .profile ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .profile)
+
+                SettingsView()
+                    .opacity(selectedTab == .settings ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .settings)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 

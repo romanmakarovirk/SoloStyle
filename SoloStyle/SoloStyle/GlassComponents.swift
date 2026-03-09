@@ -11,16 +11,88 @@ import SwiftUI
 // MARK: - Haptic Feedback
 
 enum HapticManager {
+    // Reuse generators — creating new ones on every tap wastes allocations
+    private static let lightImpact = UIImpactFeedbackGenerator(style: .light)
+    private static let mediumImpact = UIImpactFeedbackGenerator(style: .medium)
+    private static let heavyImpact = UIImpactFeedbackGenerator(style: .heavy)
+    private static let notificationGen = UINotificationFeedbackGenerator()
+    private static let selectionGen = UISelectionFeedbackGenerator()
+
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
-        UIImpactFeedbackGenerator(style: style).impactOccurred()
+        switch style {
+        case .light:  lightImpact.impactOccurred()
+        case .medium: mediumImpact.impactOccurred()
+        case .heavy:  heavyImpact.impactOccurred()
+        default:      mediumImpact.impactOccurred()
+        }
     }
 
     static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        UINotificationFeedbackGenerator().notificationOccurred(type)
+        notificationGen.notificationOccurred(type)
     }
 
     static func selection() {
-        UISelectionFeedbackGenerator().selectionChanged()
+        selectionGen.selectionChanged()
+    }
+}
+
+// MARK: - Cross-version Glass Effect Shim
+
+enum SoloGlassShape {
+    case circle
+    case capsule
+    case roundedRect(CGFloat)
+    case plain
+}
+
+extension View {
+    @ViewBuilder
+    func soloGlass(
+        tint: Color = Color.white.opacity(0.1),
+        interactive: Bool = false,
+        shape: SoloGlassShape = .roundedRect(Design.Radius.l)
+    ) -> some View {
+        if #available(iOS 26, *) {
+            _soloGlassNative(tint: tint, interactive: interactive, shape: shape)
+        } else {
+            _soloGlassFallback(tint: tint, shape: shape)
+        }
+    }
+
+    @available(iOS 26, *)
+    @ViewBuilder
+    private func _soloGlassNative(tint: Color, interactive: Bool, shape: SoloGlassShape) -> some View {
+        switch shape {
+        case .circle:
+            if interactive { self.glassEffect(.regular.tint(tint).interactive(), in: .circle) }
+            else { self.glassEffect(.regular.tint(tint), in: .circle) }
+        case .capsule:
+            if interactive { self.glassEffect(.regular.tint(tint).interactive(), in: .capsule) }
+            else { self.glassEffect(.regular.tint(tint), in: .capsule) }
+        case .roundedRect(let r):
+            if interactive { self.glassEffect(.regular.tint(tint).interactive(), in: .rect(cornerRadius: r)) }
+            else { self.glassEffect(.regular.tint(tint), in: .rect(cornerRadius: r)) }
+        case .plain:
+            if interactive { self.glassEffect(.regular.tint(tint).interactive()) }
+            else { self.glassEffect(.regular.tint(tint)) }
+        }
+    }
+
+    @ViewBuilder
+    private func _soloGlassFallback(tint: Color, shape: SoloGlassShape) -> some View {
+        switch shape {
+        case .circle:
+            self.background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+        case .capsule:
+            self.background(.ultraThinMaterial, in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+        case .roundedRect(let r):
+            self.background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: r))
+                .overlay(RoundedRectangle(cornerRadius: r).strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5))
+        case .plain:
+            self.background(.ultraThinMaterial)
+        }
     }
 }
 
@@ -52,10 +124,7 @@ struct GlassCard<Content: View>: View {
     var body: some View {
         content
             .padding(padding)
-            .glassEffect(
-                .regular.tint(tint),
-                in: .rect(cornerRadius: cornerRadius)
-            )
+            .soloGlass(tint: tint, shape: .roundedRect(cornerRadius))
             .scaleEffect(isPressed ? 0.97 : 1.0)
             .animation(Design.Animation.smooth, value: isPressed)
             .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
@@ -125,7 +194,7 @@ struct GlassButton: View {
             .padding(.horizontal, Design.Spacing.l)
             .padding(.vertical, Design.Spacing.s)
         }
-        .glassEffect(.regular.tint(style.tint).interactive(), in: .capsule)
+        .soloGlass(tint: style.tint, interactive: true, shape: .capsule)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(Design.Animation.bouncy, value: isPressed)
         .disabled(isLoading)
@@ -150,7 +219,7 @@ struct GlassIconButton: View {
                 .foregroundStyle(Design.Colors.accentPrimary)
                 .frame(width: size, height: size)
         }
-        .glassEffect(.regular.tint(tint).interactive(), in: .circle)
+        .soloGlass(tint: tint, interactive: true, shape: .circle)
     }
 }
 
@@ -201,25 +270,46 @@ struct GlassTabBar: View {
     @Namespace private var namespace
 
     var body: some View {
-        GlassEffectContainer {
-            HStack(spacing: 0) {
-                ForEach(Tab.allCases) { tab in
-                    TabBarItem(
-                        tab: tab,
-                        isSelected: selectedTab == tab,
-                        namespace: namespace
-                    ) {
-                        HapticManager.selection()
-                        withAnimation(Design.Animation.smooth) {
-                            selectedTab = tab
+        Group {
+            if #available(iOS 26, *) {
+                GlassEffectContainer {
+                    HStack(spacing: 0) {
+                        ForEach(Tab.allCases) { tab in
+                            TabBarItem(
+                                tab: tab,
+                                isSelected: selectedTab == tab,
+                                namespace: namespace
+                            ) {
+                                HapticManager.selection()
+                                withAnimation(.easeOut(duration: 0.15)) {
+                                    selectedTab = tab
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, Design.Spacing.m)
+                    .padding(.vertical, Design.Spacing.s)
+                }
+            } else {
+                HStack(spacing: 0) {
+                    ForEach(Tab.allCases) { tab in
+                        TabBarItem(
+                            tab: tab,
+                            isSelected: selectedTab == tab,
+                            namespace: namespace
+                        ) {
+                            HapticManager.selection()
+                            withAnimation(.easeOut(duration: 0.15)) {
+                                selectedTab = tab
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, Design.Spacing.m)
+                .padding(.vertical, Design.Spacing.s)
             }
-            .padding(.horizontal, Design.Spacing.m)
-            .padding(.vertical, Design.Spacing.s)
         }
-        .glassEffect(.regular.tint(Color.white.opacity(0.1)), in: .capsule)
+        .soloGlass(tint: Color.white.opacity(0.1), shape: .capsule)
         .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
         .padding(.horizontal, Design.Spacing.s)
         .padding(.bottom, 8)
@@ -293,7 +383,21 @@ struct TabBarItem: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .glassEffectID(tab.id, in: namespace)
+        .modifier(TabBarItemGlassIDModifier(id: tab.id, namespace: namespace))
+    }
+}
+
+// Helper to conditionally apply .glassEffectID only on iOS 26+
+private struct TabBarItemGlassIDModifier: ViewModifier {
+    let id: String
+    let namespace: Namespace.ID
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.glassEffectID(id, in: namespace)
+        } else {
+            content
+        }
     }
 }
 
@@ -322,7 +426,7 @@ struct GlassFAB: View {
                 .frame(width: 56, height: 56)
                 .rotationEffect(.degrees(isPressed ? 90 : 0))
         }
-        .glassEffect(.regular.tint(Color.blue.opacity(0.6)).interactive(), in: .circle)
+        .soloGlass(tint: Color.blue.opacity(0.6), interactive: true, shape: .circle)
         .shadow(color: Design.Colors.accentPrimary.opacity(0.4), radius: 16, y: 8)
         .scaleEffect(isPressed ? 0.9 : 1.0)
     }
@@ -525,7 +629,7 @@ struct ToastView: View {
             }
             .padding(.horizontal, Design.Spacing.m)
             .padding(.vertical, Design.Spacing.s)
-            .glassEffect(.regular.tint(type.color.opacity(0.15)), in: .capsule)
+            .soloGlass(tint: type.color.opacity(0.15), shape: .capsule)
             .shadow(color: .black.opacity(0.1), radius: 10, y: 5)
             .transition(.move(edge: .top).combined(with: .opacity))
             .onAppear {
@@ -598,9 +702,10 @@ struct SwipeActionCard<Content: View>: View {
                 content
             }
             .offset(x: offset)
-            .gesture(
-                DragGesture()
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30)
                     .onChanged { value in
+                        guard abs(value.translation.width) > abs(value.translation.height) else { return }
                         if value.translation.width < 0 {
                             offset = value.translation.width
                         }
@@ -660,32 +765,59 @@ struct GlassSegmentedPicker<T: Hashable & CaseIterable & CustomStringConvertible
     @Namespace private var namespace
 
     var body: some View {
-        GlassEffectContainer {
-            HStack(spacing: 4) {
-                ForEach(Array(T.allCases), id: \.self) { item in
-                    Button {
-                        HapticManager.selection()
-                        withAnimation(Design.Animation.smooth) {
-                            selection = item
+        Group {
+            if #available(iOS 26, *) {
+                GlassEffectContainer {
+                    HStack(spacing: 4) {
+                        ForEach(Array(T.allCases), id: \.self) { item in
+                            Button {
+                                HapticManager.selection()
+                                withAnimation(Design.Animation.smooth) {
+                                    selection = item
+                                }
+                            } label: {
+                                Text(item.description)
+                                    .font(Design.Typography.subheadline)
+                                    .fontWeight(selection == item ? .semibold : .regular)
+                                    .foregroundStyle(selection == item ? Design.Colors.accentPrimary : Design.Colors.textSecondary)
+                                    .padding(.horizontal, Design.Spacing.m)
+                                    .padding(.vertical, Design.Spacing.xs)
+                            }
+                            .soloGlass(
+                                tint: selection == item ? Color.blue.opacity(0.15) : Color.clear,
+                                shape: .capsule
+                            )
+                            .glassEffectID(String(describing: item), in: namespace)
                         }
-                    } label: {
-                        Text(item.description)
-                            .font(Design.Typography.subheadline)
-                            .fontWeight(selection == item ? .semibold : .regular)
-                            .foregroundStyle(selection == item ? Design.Colors.accentPrimary : Design.Colors.textSecondary)
-                            .padding(.horizontal, Design.Spacing.m)
-                            .padding(.vertical, Design.Spacing.xs)
                     }
-                    .glassEffect(
-                        selection == item ? .regular.tint(Color.blue.opacity(0.15)) : .clear,
-                        in: .capsule
-                    )
-                    .glassEffectID(String(describing: item), in: namespace)
+                    .padding(4)
                 }
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(Array(T.allCases), id: \.self) { item in
+                        Button {
+                            HapticManager.selection()
+                            withAnimation(Design.Animation.smooth) {
+                                selection = item
+                            }
+                        } label: {
+                            Text(item.description)
+                                .font(Design.Typography.subheadline)
+                                .fontWeight(selection == item ? .semibold : .regular)
+                                .foregroundStyle(selection == item ? Design.Colors.accentPrimary : Design.Colors.textSecondary)
+                                .padding(.horizontal, Design.Spacing.m)
+                                .padding(.vertical, Design.Spacing.xs)
+                        }
+                        .soloGlass(
+                            tint: selection == item ? Color.blue.opacity(0.15) : Color.clear,
+                            shape: .capsule
+                        )
+                    }
+                }
+                .padding(4)
             }
-            .padding(4)
         }
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .plain)
     }
 }
 
@@ -714,10 +846,7 @@ struct GlassChip: View {
             .padding(.horizontal, Design.Spacing.s)
             .padding(.vertical, Design.Spacing.xs)
         }
-        .glassEffect(
-            isSelected ? .regular.tint(Color.blue.opacity(0.5)) : .regular.tint(Color.white.opacity(0.1)),
-            in: .capsule
-        )
+        .soloGlass(tint: isSelected ? Color.blue.opacity(0.5) : Color.white.opacity(0.1), shape: .capsule)
     }
 }
 
@@ -751,7 +880,7 @@ struct GlassSearchBar: View {
             }
         }
         .padding(Design.Spacing.s)
-        .glassEffect(.regular.tint(Color.white.opacity(0.1)), in: .capsule)
+        .soloGlass(tint: Color.white.opacity(0.1), shape: .capsule)
         .animation(Design.Animation.smooth, value: isFocused)
     }
 }
@@ -788,7 +917,7 @@ struct GlassActionItem: View {
             }
             .padding(Design.Spacing.m)
         }
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)).interactive(), in: .rect(cornerRadius: Design.Radius.m))
+        .soloGlass(tint: Color.white.opacity(0.05), interactive: true, shape: .roundedRect(Design.Radius.m))
     }
 }
 
@@ -828,7 +957,7 @@ struct GlassToggle: View {
                 .labelsHidden()
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.m))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.m))
         .onChange(of: isOn) { _, _ in
             HapticManager.selection()
         }
@@ -857,7 +986,7 @@ struct ProfileAvatar: View {
                 .foregroundStyle(.white)
                 .frame(width: size, height: size)
         }
-        .glassEffect(.regular.tint(Color.blue.opacity(0.4)), in: .circle)
+        .soloGlass(tint: Color.blue.opacity(0.4), shape: .circle)
         .overlay(alignment: .bottomTrailing) {
             if showStatus {
                 Circle()
@@ -899,7 +1028,7 @@ struct GlassInfoRow: View {
                 .foregroundStyle(Design.Colors.textPrimary)
         }
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.m))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.m))
     }
 }
 
@@ -928,6 +1057,6 @@ struct GlassStatCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(Design.Spacing.m)
-        .glassEffect(.regular.tint(tint.opacity(0.1)), in: .rect(cornerRadius: Design.Radius.l))
+        .soloGlass(tint: tint.opacity(0.1), shape: .roundedRect(Design.Radius.l))
     }
 }

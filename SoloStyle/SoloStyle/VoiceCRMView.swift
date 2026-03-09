@@ -167,7 +167,7 @@ struct VoiceCRMView: View {
                     .foregroundStyle(Design.Colors.textPrimary)
                     .padding(Design.Spacing.m)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.l))
+                    .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.l))
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
@@ -327,7 +327,7 @@ struct VoiceCRMView: View {
                     .foregroundStyle(Design.Colors.accentPrimary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Design.Spacing.m)
-                    .glassEffect(.regular.tint(Color.blue.opacity(0.1)), in: .rect(cornerRadius: Design.Radius.l))
+                    .soloGlass(tint: Color.blue.opacity(0.1), shape: .roundedRect(Design.Radius.l))
                 }
 
                 Button {
@@ -403,7 +403,7 @@ struct VoiceCRMView: View {
                     .font(.system(size: 42, weight: .medium))
                     .foregroundStyle(Design.Colors.accentPrimary)
                     .frame(width: 90, height: 90)
-                    .glassEffect(.regular.tint(Color.blue.opacity(0.2)), in: .circle)
+                    .soloGlass(tint: Color.blue.opacity(0.2), shape: .circle)
             }
         }
     }
@@ -422,7 +422,7 @@ struct VoiceCRMView: View {
                         .fill(Design.Colors.accentError)
                         .shadow(color: Design.Colors.accentError.opacity(0.4), radius: 16, y: 4)
                 )
-                .glassEffect(.regular.tint(Color.red.opacity(0.2)), in: .circle)
+                .soloGlass(tint: Color.red.opacity(0.2), shape: .circle)
         }
     }
 
@@ -451,7 +451,7 @@ struct VoiceCRMView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Design.Colors.accentPrimary)
                             .frame(width: 28, height: 28)
-                            .glassEffect(.regular.tint(Color.blue.opacity(0.1)), in: .circle)
+                            .soloGlass(tint: Color.blue.opacity(0.1), shape: .circle)
 
                         Text(template.1)
                             .font(.system(size: 13))
@@ -466,7 +466,7 @@ struct VoiceCRMView: View {
                     }
                     .padding(.horizontal, Design.Spacing.s)
                     .padding(.vertical, Design.Spacing.s)
-                    .glassEffect(.regular.tint(Color.white.opacity(0.03)), in: .rect(cornerRadius: Design.Radius.m))
+                    .soloGlass(tint: Color.white.opacity(0.03), shape: .roundedRect(Design.Radius.m))
                 }
                 .buttonStyle(.plain)
             }
@@ -487,7 +487,7 @@ struct VoiceCRMView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(color)
                 .frame(width: 32, height: 32)
-                .glassEffect(.regular.tint(color.opacity(0.15)), in: .circle)
+                .soloGlass(tint: color.opacity(0.15), shape: .circle)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
@@ -502,7 +502,7 @@ struct VoiceCRMView: View {
         }
         .padding(.horizontal, Design.Spacing.s)
         .padding(.vertical, Design.Spacing.s)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.m))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.m))
     }
 
     private var previewDateField: some View {
@@ -511,7 +511,7 @@ struct VoiceCRMView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.orange)
                 .frame(width: 32, height: 32)
-                .glassEffect(.regular.tint(Color.orange.opacity(0.15)), in: .circle)
+                .soloGlass(tint: Color.orange.opacity(0.15), shape: .circle)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(L.vcDate + " / " + L.vcTime)
@@ -528,7 +528,7 @@ struct VoiceCRMView: View {
         }
         .padding(.horizontal, Design.Spacing.s)
         .padding(.vertical, Design.Spacing.s)
-        .glassEffect(.regular.tint(Color.white.opacity(0.05)), in: .rect(cornerRadius: Design.Radius.m))
+        .soloGlass(tint: Color.white.opacity(0.05), shape: .roundedRect(Design.Radius.m))
     }
 
     // MARK: - Actions

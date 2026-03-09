@@ -93,6 +93,24 @@ final class StatsCache {
     }
 }
 
+// MARK: - User Role
+
+enum UserRole: String, Codable, Sendable {
+    case master
+    case client
+}
+
+// MARK: - Currency Formatter (cached)
+
+enum CurrencyFormat {
+    static let localized: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencyCode = Locale.current.currency?.identifier ?? "RUB"
+        return f
+    }()
+}
+
 // MARK: - Master
 
 @Model
@@ -105,6 +123,19 @@ final class Master {
     var email: String?
     var phone: String?
     var createdAt: Date = Date()
+
+    // Auth & Role
+    var userRole: String = "master"
+    var telegramId: Int64 = 0
+    var telegramUsername: String?
+    var telegramFirstName: String?
+    var telegramPhotoUrl: String?
+    var isAuthenticated: Bool = false
+
+    var role: UserRole {
+        get { UserRole(rawValue: userRole) ?? .master }
+        set { userRole = newValue.rawValue }
+    }
 
     @Relationship(deleteRule: .cascade, inverse: \Service.master)
     var services: [Service] = []
@@ -125,13 +156,15 @@ final class Master {
         self.publicSlug = name.lowercased().replacingOccurrences(of: " ", with: "_") + "_\(UUID().uuidString.prefix(4))"
         self.createdAt = Date()
     }
-}
+}   
 
 // MARK: - Service
 
 @Model
 final class Service {
+    #if compiler(>=6.2)
     #Index<Service>([\.isActive], [\.name])
+    #endif
 
     var id: UUID = UUID()
     var name: String = ""
@@ -142,11 +175,11 @@ final class Service {
 
     var master: Master?
 
+    @Relationship(deleteRule: .nullify, inverse: \Appointment.service)
+    var appointments: [Appointment] = []
+
     var formattedPrice: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        return formatter.string(from: price as NSDecimalNumber) ?? "$\(price)"
+        CurrencyFormat.localized.string(from: price as NSDecimalNumber) ?? "\(price)"
     }
 
     var formattedDuration: String {
@@ -205,7 +238,9 @@ enum LoyaltyTier: String, Codable {
 
 @Model
 final class Client {
+    #if compiler(>=6.2)
     #Index<Client>([\.name], [\.createdAt])
+    #endif
 
     var id: UUID = UUID()
     var name: String = ""
@@ -257,10 +292,7 @@ final class Client {
     }
 
     var formattedTotalSpent: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        return formatter.string(from: totalSpent as NSDecimalNumber) ?? "$0"
+        CurrencyFormat.localized.string(from: totalSpent as NSDecimalNumber) ?? "\(totalSpent)"
     }
 
     init(name: String, phone: String? = nil, email: String? = nil) {
@@ -289,7 +321,9 @@ enum AppointmentStatus: String, Codable {
 
 @Model
 final class Appointment {
+    #if compiler(>=6.2)
     #Index<Appointment>([\.date], [\.statusRaw])
+    #endif
 
     var id: UUID = UUID()
     var date: Date = Date()
@@ -305,7 +339,6 @@ final class Appointment {
     var master: Master?
     var client: Client?
 
-    @Relationship(deleteRule: .nullify)
     var service: Service?
 
     var status: AppointmentStatus {

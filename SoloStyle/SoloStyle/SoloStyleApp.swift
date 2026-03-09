@@ -20,6 +20,20 @@ struct SoloStyleApp: App {
             Client.self,
             WorkSchedule.self
         ])
+
+        // One-time migration: clear store after schema change (v3 — added Telegram auth fields)
+        let migrationKey = "db_schema_v3"
+        if !UserDefaults.standard.bool(forKey: migrationKey) {
+            let urls = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+            if let appSupport = urls.first {
+                for ext in ["store", "store-shm", "store-wal"] {
+                    let file = appSupport.appendingPathComponent("default.\(ext)")
+                    try? FileManager.default.removeItem(at: file)
+                }
+            }
+            UserDefaults.standard.set(true, forKey: migrationKey)
+        }
+
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
         do {
@@ -37,13 +51,33 @@ struct SoloStyleApp: App {
 
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var quickActionDestination: QuickActionDestination?
+    @State private var authManager = AuthManager.shared
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                MainTabView(quickActionDestination: $quickActionDestination)
-            } else {
-                OnboardingView()
+            Group {
+                if !authManager.isAuthenticated {
+                    // Not logged in — show Telegram login
+                    OnboardingView()
+                } else if authManager.selectedRole == nil {
+                    // Logged in but no role selected
+                    RoleSelectionView()
+                } else if authManager.selectedRole == .client {
+                    // Client role — simplified UI
+                    ClientMainView()
+                } else {
+                    // Master role — full UI
+                    if hasCompletedOnboarding {
+                        MainTabView(quickActionDestination: $quickActionDestination)
+                    } else {
+                        OnboardingView()
+                    }
+                }
+            }
+            .onOpenURL { url in
+                Task {
+                    await authManager.handleAuthCallback(url: url)
+                }
             }
         }
         .modelContainer(sharedModelContainer)

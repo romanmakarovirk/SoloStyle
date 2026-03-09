@@ -175,6 +175,15 @@ enum L {
     static var copied: String { isRu ? "Скопировано!" : "Copied!" }
     static var copyLink: String { isRu ? "Копировать" : "Copy Link" }
     static var share: String { isRu ? "Поделиться" : "Share" }
+    static var memberSince: String { isRu ? "В SoloStyle с" : "Member since" }
+    static var quickActions: String { isRu ? "Быстрые действия" : "Quick Actions" }
+    static var viewAnalytics: String { isRu ? "Аналитика" : "Analytics" }
+    static var shareProfile: String { isRu ? "Поделиться" : "Share" }
+    static var exportLabel: String { isRu ? "Экспорт" : "Export" }
+    static var workSchedule: String { isRu ? "График работы" : "Work Schedule" }
+    static var myServices: String { isRu ? "Мои услуги" : "My Services" }
+    static var avgPerMonth: String { isRu ? "Ср. в месяц" : "Avg/month" }
+    static var totalEarnings: String { isRu ? "Всего заработано" : "Total Earned" }
 
     // MARK: - Profile — Work Schedule
     static var closed: String { isRu ? "Выходной" : "Closed" }
@@ -386,4 +395,26 @@ enum L {
     static var qaManicure: String { isRu ? "Маникюр" : "Manicure" }
     static var qaMassage: String { isRu ? "Массаж" : "Massage" }
     static var qaMakeup: String { isRu ? "Макияж" : "Makeup" }
+
+    // MARK: - Auth & Roles
+    static var continueWithTelegram: String { isRu ? "Войти через Telegram" : "Continue with Telegram" }
+    static var welcome: String { isRu ? "Добро пожаловать" : "Welcome" }
+    static var howDoYouWantToUseApp: String { isRu ? "Как вы хотите использовать приложение?" : "How do you want to use the app?" }
+    static var roleMaster: String { isRu ? "Мастер" : "Professional" }
+    static var roleMasterDescription: String { isRu ? "Управление клиентами, записями, аналитика" : "Manage clients, appointments, analytics" }
+    static var roleClient: String { isRu ? "Клиент" : "Client" }
+    static var roleClientDescription: String { isRu ? "Найти мастера, записаться с помощью AI" : "Find a professional, book with AI" }
+    static var continueButton: String { isRu ? "Продолжить" : "Continue" }
+    static var logout: String { isRu ? "Выйти" : "Log out" }
+    static var authError: String { isRu ? "Ошибка авторизации" : "Authentication error" }
+    static var openTelegram: String { isRu ? "Откройте Telegram" : "Open Telegram" }
+    static var waitingForTelegram: String { isRu ? "Ожидание входа через Telegram..." : "Waiting for Telegram login..." }
+    static var tabSearch: String { isRu ? "Поиск" : "Search" }
+    static var tabMyBookings: String { isRu ? "Мои записи" : "My Bookings" }
+    static var popularQueries: String { isRu ? "Популярные запросы" : "Popular queries" }
+    static var queryHaircut: String { isRu ? "Стрижка" : "Haircut" }
+    static var queryManicure: String { isRu ? "Маникюр" : "Manicure" }
+    static var queryMassage: String { isRu ? "Массаж" : "Massage" }
+    static var querySkincare: String { isRu ? "Уход за кожей" : "Skincare" }
+    static var clientBookingsHint: String { isRu ? "Найдите мастера через AI-поиск и запишитесь" : "Find a professional via AI search and book" }
 }

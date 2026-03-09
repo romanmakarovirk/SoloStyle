@@ -9,7 +9,7 @@ import Foundation
 
 // MARK: - API Models
 
-struct SearchRequest: Codable, Sendable {
+nonisolated struct SearchRequest: Codable, Sendable {
     let query: String
     let latitude: Double
     let longitude: Double
@@ -21,12 +21,12 @@ struct SearchRequest: Codable, Sendable {
     }
 }
 
-struct SearchResponse: Codable, Sendable {
+nonisolated struct SearchResponse: Codable, Sendable {
     let answer: String
     let masters: [MasterResult]
 }
 
-struct MasterResult: Codable, Sendable, Identifiable {
+nonisolated struct MasterResult: Codable, Sendable, Identifiable {
     let serviceId: String
     let serviceName: String
     let serviceDescription: String
@@ -66,18 +66,18 @@ struct MasterResult: Codable, Sendable, Identifiable {
 
 // MARK: - Voice CRM Models
 
-struct VoiceCRMRequest: Codable, Sendable {
+nonisolated struct VoiceCRMRequest: Codable, Sendable {
     let text: String
     let timezone: String
 }
 
-struct VoiceCRMResponse: Codable, Sendable {
+nonisolated struct VoiceCRMResponse: Codable, Sendable {
     let success: Bool
     let entities: ParsedEntity
     let summary: String
 }
 
-struct ParsedEntity: Codable, Sendable {
+nonisolated struct ParsedEntity: Codable, Sendable {
     let clientName: String?
     let phone: String?
     let serviceName: String?
@@ -94,9 +94,32 @@ struct ParsedEntity: Codable, Sendable {
     }
 }
 
+// MARK: - Auth API Models
+
+nonisolated struct AuthTokenRequest: Codable, Sendable {
+    let authToken: String
+    enum CodingKeys: String, CodingKey {
+        case authToken = "auth_token"
+    }
+}
+
+nonisolated struct AuthTokenCheckResponse: Codable, Sendable {
+    let completed: Bool
+    let jwt: String?
+}
+
+nonisolated struct AuthValidateResponse: Codable, Sendable {
+    let user: TelegramUser
+    let role: String?
+}
+
+nonisolated struct RoleUpdateRequest: Codable, Sendable {
+    let role: String
+}
+
 // MARK: - Network Errors
 
-enum NetworkError: LocalizedError, Sendable {
+nonisolated enum NetworkError: LocalizedError, Sendable {
     case invalidURL
     case noConnection
     case serverError(Int)
@@ -133,6 +156,7 @@ actor NetworkManager {
 
     private let session: URLSession
     private let decoder: JSONDecoder
+    private var jwtToken: String?
 
     private init() {
         let config = URLSessionConfiguration.default
@@ -140,6 +164,97 @@ actor NetworkManager {
         config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
         self.decoder = JSONDecoder()
+    }
+
+    /// Set JWT token for authenticated requests
+    func setJWT(_ token: String?) {
+        jwtToken = token
+    }
+
+    private func authenticatedRequest(for url: URL) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let jwt = jwtToken {
+            request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    // MARK: - Auth API
+
+    /// Register a temporary auth token for Telegram login flow
+    func registerAuthToken(_ token: String) async throws {
+        guard let url = URL(string: baseURL + "/auth/register-token") else {
+            throw NetworkError.invalidURL
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(AuthTokenRequest(authToken: token))
+
+        let (_, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
+    }
+
+    /// Check if auth token has been completed (polling)
+    func checkAuthToken(_ token: String) async throws -> String? {
+        guard let url = URL(string: baseURL + "/auth/check-token?auth_token=\(token)") else {
+            throw NetworkError.invalidURL
+        }
+
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
+
+        let result = try decoder.decode(AuthTokenCheckResponse.self, from: data)
+        return result.completed ? result.jwt : nil
+    }
+
+    /// Validate JWT and get user info
+    func validateToken(_ jwt: String) async throws -> TelegramUser {
+        guard let url = URL(string: baseURL + "/auth/validate") else {
+            throw NetworkError.invalidURL
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
+
+        let result = try decoder.decode(AuthValidateResponse.self, from: data)
+        jwtToken = jwt
+        return result.user
+    }
+
+    /// Update user role on backend
+    func updateUserRole(_ role: UserRole, jwt: String) async throws {
+        guard let url = URL(string: baseURL + "/auth/role") else {
+            throw NetworkError.invalidURL
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "PUT"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = try JSONEncoder().encode(RoleUpdateRequest(role: role.rawValue))
+
+        let (_, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
     }
 
     /// Parse voice input into CRM entities via backend

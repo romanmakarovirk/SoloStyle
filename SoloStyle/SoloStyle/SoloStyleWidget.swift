@@ -157,8 +157,8 @@ struct SoloStyleMediumWidgetView: View {
 struct SoloStyleLargeWidgetView: View {
     let entry: SoloStyleWidgetEntry
     private var formattedRevenue: String {
-        let f = NumberFormatter(); f.numberStyle = .currency; f.currencyCode = "USD"; f.maximumFractionDigits = 0
-        return f.string(from: entry.weekRevenue as NSDecimalNumber) ?? "$0"
+        let f = NumberFormatter(); f.numberStyle = .currency; f.currencyCode = Locale.current.currency?.identifier ?? "RUB"; f.maximumFractionDigits = 0
+        return f.string(from: entry.weekRevenue as NSDecimalNumber) ?? "0"
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
