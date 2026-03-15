@@ -118,7 +118,11 @@ async def _run_telegram_bot():
 
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(f"{api_base}/auth/telegram-webhook", json=payload)
+                resp = await client.post(
+                    f"{api_base}/auth/telegram-webhook",
+                    json=payload,
+                    headers={"X-Webhook-Secret": settings.jwt_secret},
+                )
 
             if resp.status_code == 200:
                 await update.message.reply_text(

@@ -110,12 +110,20 @@ def _decode_jwt(token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+def _verify_webhook_secret(x_webhook_secret: str = Header(...)) -> None:
+    """Verify internal webhook calls come from our own bot."""
+    if x_webhook_secret != settings.jwt_secret:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 def _get_current_user_id(authorization: str = Header(...)) -> str:
     """Extract user ID from Authorization: Bearer <jwt> header."""
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
-    token = authorization[7:]
+    token = authorization.removeprefix("Bearer ").strip()
     payload = _decode_jwt(token)
+    if "sub" not in payload:
+        raise HTTPException(status_code=401, detail="Invalid token: missing sub")
     return payload["sub"]
 
 
@@ -155,7 +163,11 @@ def check_token(auth_token: str, db: Client = Depends(get_supabase)):
 
 
 @router.post("/telegram-webhook")
-def telegram_webhook(body: TelegramWebhookPayload, db: Client = Depends(get_supabase)):
+def telegram_webhook(
+    body: TelegramWebhookPayload,
+    _secret: None = Depends(_verify_webhook_secret),
+    db: Client = Depends(get_supabase),
+):
     """
     Step 3: Called by the Telegram bot when user sends /start <auth_token>.
     Creates or updates user, generates JWT, marks auth_token as completed.
