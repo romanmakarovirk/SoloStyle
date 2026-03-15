@@ -5,6 +5,7 @@
 //  Onboarding flow with premium animations
 //
 
+import AuthenticationServices
 import SwiftUI
 import SwiftData
 
@@ -93,7 +94,7 @@ struct OnboardingView: View {
             }
             .padding(Design.Spacing.m)
 
-            // Telegram login button
+            // Login buttons
             VStack(spacing: Design.Spacing.s) {
                 if authManager.isAuthenticating {
                     HStack(spacing: Design.Spacing.s) {
@@ -109,6 +110,31 @@ struct OnboardingView: View {
                         HapticManager.impact(.medium)
                         Task { await authManager.startTelegramAuth() }
                     }
+
+                    // Divider
+                    HStack {
+                        Rectangle()
+                            .fill(Design.Colors.textSecondary.opacity(0.3))
+                            .frame(height: 1)
+                        Text("или")
+                            .font(Design.Typography.caption1)
+                            .foregroundStyle(Design.Colors.textSecondary)
+                        Rectangle()
+                            .fill(Design.Colors.textSecondary.opacity(0.3))
+                            .frame(height: 1)
+                    }
+
+                    // Apple Sign-In
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.fullName, .email]
+                    } onCompletion: { result in
+                        Task {
+                            await authManager.handleAppleSignIn(result: result)
+                        }
+                    }
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 50)
+                    .cornerRadius(Design.Radius.m)
                 }
 
                 if let error = authManager.authError {
