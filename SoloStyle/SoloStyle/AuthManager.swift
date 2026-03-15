@@ -2,21 +2,24 @@
 //  AuthManager.swift
 //  SoloStyle
 //
-//  Telegram authentication manager with Keychain JWT storage
+//  Telegram + Apple authentication manager with Keychain JWT storage
 //
 
+import AuthenticationServices
 import Foundation
 import Security
 import SwiftUI
 
-// MARK: - Telegram User Data
+// MARK: - User Data
 
 nonisolated struct TelegramUser: Codable, Sendable {
-    let telegramId: Int64
+    let telegramId: Int64?
     let firstName: String
     let lastName: String?
     let username: String?
     let photoUrl: String?
+    let email: String?
+    let appleUserId: String?
 
     enum CodingKeys: String, CodingKey {
         case telegramId = "telegram_id"
@@ -24,6 +27,70 @@ nonisolated struct TelegramUser: Codable, Sendable {
         case lastName = "last_name"
         case username
         case photoUrl = "photo_url"
+        case email
+        case appleUserId = "apple_user_id"
+    }
+}
+
+// MARK: - Apple Sign-In Delegate
+
+/// Bridges ASAuthorizationController delegate callbacks to async/await via a continuation.
+private final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding, @unchecked Sendable {
+
+    private var continuation: CheckedContinuation<ASAuthorizationAppleIDCredential, Error>?
+
+    func signIn() async throws -> ASAuthorizationAppleIDCredential {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+
+            let provider = ASAuthorizationAppleIDProvider()
+            let request = provider.createRequest()
+            request.requestedScopes = [.fullName, .email]
+
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    // MARK: - ASAuthorizationControllerDelegate
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            continuation?.resume(throwing: AuthError.invalidCredential)
+            continuation = nil
+            return
+        }
+        continuation?.resume(returning: credential)
+        continuation = nil
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
+
+    // MARK: - ASAuthorizationControllerPresentationContextProviding
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first else {
+            return ASPresentationAnchor()
+        }
+        return window
+    }
+}
+
+private enum AuthError: Error, LocalizedError {
+    case invalidCredential
+    case missingIdentityToken
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidCredential: return "Invalid Apple credential"
+        case .missingIdentityToken: return "Missing identity token from Apple"
+        }
     }
 }
 
@@ -45,22 +112,31 @@ final class AuthManager {
     // Pending auth token for Telegram flow
     private var pendingAuthToken: String?
     private var pollTimer: Timer?
+    private var pollAttempts = 0
+
+    // Prevent delegate from being deallocated during Apple Sign-In flow
+    private var appleSignInDelegate: AppleSignInDelegate?
 
     private init() {
         // Check Keychain for existing JWT on launch
         if let jwt = loadJWT() {
-            isAuthenticated = true
-            // Load cached role
-            if let roleStr = UserDefaults.standard.string(forKey: "userRole"),
-               let role = UserRole(rawValue: roleStr) {
-                selectedRole = role
+            // Decode JWT payload and check expiry before trusting it
+            if isJWTExpired(jwt) {
+                print("[AUTH] JWT expired at startup, clearing")
+                deleteJWT()
+            } else {
+                isAuthenticated = true
+                // Load cached role
+                if let roleStr = UserDefaults.standard.string(forKey: "userRole"),
+                   let role = UserRole(rawValue: roleStr) {
+                    selectedRole = role
+                }
+                // Load cached user data
+                if let data = UserDefaults.standard.data(forKey: "cachedUser"),
+                   let user = try? JSONDecoder().decode(TelegramUser.self, from: data) {
+                    currentUser = user
+                }
             }
-            // Load cached user data
-            if let data = UserDefaults.standard.data(forKey: "cachedUser"),
-               let user = try? JSONDecoder().decode(TelegramUser.self, from: data) {
-                currentUser = user
-            }
-            _ = jwt // JWT loaded, will be used for API calls
         }
     }
 
@@ -93,7 +169,85 @@ final class AuthManager {
         }
     }
 
-    /// Step 2: Handle callback URL (solostyle://auth?token=JWT)
+    // MARK: - Apple Sign-In Flow
+
+    /// Present Apple Sign-In sheet, get credential, authenticate with backend, complete auth
+    func startAppleSignIn() async {
+        isAuthenticating = true
+        authError = nil
+
+        do {
+            let delegate = AppleSignInDelegate()
+            appleSignInDelegate = delegate // retain during flow
+
+            let credential = try await delegate.signIn()
+
+            guard let identityTokenData = credential.identityToken,
+                  let identityToken = String(data: identityTokenData, encoding: .utf8) else {
+                throw AuthError.missingIdentityToken
+            }
+
+            let firstName = credential.fullName?.givenName
+            let lastName = credential.fullName?.familyName
+            let email = credential.email
+
+            // Send to backend
+            let jwt = try await NetworkManager.shared.appleAuth(
+                identityToken: identityToken,
+                userId: credential.user,
+                firstName: firstName,
+                lastName: lastName,
+                email: email
+            )
+
+            await completeAuth(jwt: jwt)
+
+        } catch let error as ASAuthorizationError where error.code == .canceled {
+            // User cancelled — not an error
+            isAuthenticating = false
+        } catch {
+            authError = L.authError
+            isAuthenticating = false
+        }
+
+        appleSignInDelegate = nil
+    }
+
+    /// Handle Apple Sign-In result from SignInWithAppleButton
+    func handleAppleSignIn(result: Result<ASAuthorization, Error>) async {
+        switch result {
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let identityTokenData = credential.identityToken,
+                  let identityToken = String(data: identityTokenData, encoding: .utf8)
+            else {
+                authError = L.authError
+                return
+            }
+
+            isAuthenticating = true
+            authError = nil
+
+            do {
+                let jwt = try await NetworkManager.shared.appleAuth(
+                    identityToken: identityToken,
+                    userId: credential.user,
+                    firstName: credential.fullName?.givenName,
+                    lastName: credential.fullName?.familyName,
+                    email: credential.email
+                )
+                await completeAuth(jwt: jwt)
+            } catch {
+                authError = L.authError
+                isAuthenticating = false
+            }
+
+        case .failure:
+            authError = L.authError
+        }
+    }
+
+    /// Handle callback URL (solostyle://auth?token=JWT)
     func handleAuthCallback(url: URL) async {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.scheme == "solostyle",
@@ -135,21 +289,22 @@ final class AuthManager {
     /// Poll backend to check if Telegram auth completed
     private func startPolling(authToken: String) {
         stopPolling()
-        var attempts = 0
+        pollAttempts = 0
         let maxAttempts = 60 // 5 minutes at 5-second intervals
 
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
-                attempts += 1
-                if attempts >= maxAttempts {
-                    self?.stopPolling()
-                    self?.authError = L.authError
-                    self?.isAuthenticating = false
+                guard let self else { return }
+                self.pollAttempts += 1
+                if self.pollAttempts >= maxAttempts {
+                    self.stopPolling()
+                    self.authError = L.authError
+                    self.isAuthenticating = false
                     return
                 }
 
                 Task {
-                    await self?.checkAuthStatus(authToken: authToken)
+                    await self.checkAuthStatus(authToken: authToken)
                 }
             }
         }
@@ -176,20 +331,49 @@ final class AuthManager {
 
     private func completeAuth(jwt: String) async {
         do {
-            let user = try await NetworkManager.shared.validateToken(jwt)
+            let result = try await NetworkManager.shared.validateToken(jwt)
             saveJWT(jwt)
-            currentUser = user
+            currentUser = result.user
             isAuthenticated = true
             isAuthenticating = false
 
+            // Restore role from backend if available
+            if let roleStr = result.role, let role = UserRole(rawValue: roleStr) {
+                selectedRole = role
+                UserDefaults.standard.set(role.rawValue, forKey: "userRole")
+            }
+
             // Cache user data for quick loading
-            if let data = try? JSONEncoder().encode(user) {
+            if let data = try? JSONEncoder().encode(result.user) {
                 UserDefaults.standard.set(data, forKey: "cachedUser")
             }
         } catch {
             authError = L.authError
             isAuthenticating = false
         }
+    }
+
+    // MARK: - JWT Helpers
+
+    /// Decode JWT payload (base64 middle segment) and check if `exp` claim is in the past.
+    private func isJWTExpired(_ jwt: String) -> Bool {
+        let parts = jwt.split(separator: ".")
+        guard parts.count == 3 else { return true }
+
+        var base64 = String(parts[1])
+        // Pad to multiple of 4 for base64 decoding
+        let remainder = base64.count % 4
+        if remainder > 0 {
+            base64 += String(repeating: "=", count: 4 - remainder)
+        }
+
+        guard let payloadData = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let exp = json["exp"] as? TimeInterval else {
+            return true // Can't decode — treat as expired
+        }
+
+        return Date().timeIntervalSince1970 >= exp
     }
 
     // MARK: - Keychain Helpers
@@ -221,10 +405,13 @@ final class AuthManager {
             kSecAttrService as String: keychainService,
             kSecAttrAccount as String: keychainAccount,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
 
-        SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status != errSecSuccess {
+            print("[AUTH] Keychain save failed: \(status)")
+        }
     }
 
     private func deleteJWT() {

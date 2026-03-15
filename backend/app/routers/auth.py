@@ -200,7 +200,6 @@ def telegram_webhook(
             "last_name": body.last_name,
             "username": body.username,
             "photo_url": body.photo_url,
-            "auth_provider": "telegram",
             "updated_at": now,
         }
 
@@ -340,7 +339,10 @@ def validate_token(
     # Try telegram_id first, then apple_user_id
     user = _db_select_one(db, "users", "telegram_id", int(user_id)) if user_id.isdigit() else None
     if not user:
-        user = _db_select_one(db, "users", "apple_user_id", user_id)
+        try:
+            user = _db_select_one(db, "users", "apple_user_id", user_id)
+        except Exception:
+            user = None  # apple_user_id column may not exist yet
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
