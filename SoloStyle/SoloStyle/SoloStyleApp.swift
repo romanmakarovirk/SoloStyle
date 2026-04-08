@@ -40,12 +40,27 @@ struct SoloStyleApp: App {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             print("Database error: \(error). Falling back to in-memory storage.")
-            let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            do {
-                return try ModelContainer(for: schema, configurations: [fallbackConfig])
-            } catch {
-                fatalError("Critical database error: \(error)")
+
+            // Try deleting corrupted database files
+            if let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                for ext in ["store", "store-shm", "store-wal"] {
+                    let file = appSupport.appendingPathComponent("default.\(ext)")
+                    try? FileManager.default.removeItem(at: file)
+                }
             }
+
+            // Retry with fresh disk storage
+            if let retryContainer = try? ModelContainer(for: schema, configurations: [modelConfiguration]) {
+                return retryContainer
+            }
+
+            // Final fallback: in-memory
+            let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            guard let container = try? ModelContainer(for: schema, configurations: [fallbackConfig]) else {
+                // Absolute last resort — should never happen
+                fatalError("Cannot create any ModelContainer: \(error)")
+            }
+            return container
         }
     }()
 

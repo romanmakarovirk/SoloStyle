@@ -58,6 +58,8 @@ extension LocationManager: CLLocationManagerDelegate {
                 self.longitude = lon
             }
             #endif
+            // Stop GPS after getting a valid location to save battery
+            self.stopUpdating()
         }
     }
 

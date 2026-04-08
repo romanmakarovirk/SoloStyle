@@ -151,10 +151,14 @@ def register_token(body: RegisterTokenRequest, db: Client = Depends(get_supabase
     return RegisterTokenResponse()
 
 
-@router.get("/check-token", response_model=CheckTokenResponse)
-def check_token(auth_token: str, db: Client = Depends(get_supabase)):
+class CheckTokenRequest(BaseModel):
+    auth_token: str
+
+
+@router.post("/check-token", response_model=CheckTokenResponse)
+def check_token(body: CheckTokenRequest, db: Client = Depends(get_supabase)):
     """Step 5: iOS polls this endpoint to check if Telegram auth completed."""
-    row = _db_select_one(db, "auth_tokens", "auth_token", auth_token)
+    row = _db_select_one(db, "auth_tokens", "auth_token", body.auth_token)
 
     if not row:
         raise HTTPException(status_code=404, detail="Token not found")

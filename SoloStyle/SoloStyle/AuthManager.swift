@@ -35,12 +35,18 @@ nonisolated struct TelegramUser: Codable, Sendable {
 // MARK: - Apple Sign-In Delegate
 
 /// Bridges ASAuthorizationController delegate callbacks to async/await via a continuation.
-private final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding, @unchecked Sendable {
+/// Must only be used once per instance — create a new delegate for each sign-in attempt.
+@MainActor
+private final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
 
     private var continuation: CheckedContinuation<ASAuthorizationAppleIDCredential, Error>?
 
     func signIn() async throws -> ASAuthorizationAppleIDCredential {
-        try await withCheckedThrowingContinuation { continuation in
+        guard continuation == nil else {
+            throw AuthError.invalidCredential // Already in use
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
 
             let provider = ASAuthorizationAppleIDProvider()
@@ -56,19 +62,23 @@ private final class AppleSignInDelegate: NSObject, ASAuthorizationControllerDele
 
     // MARK: - ASAuthorizationControllerDelegate
 
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
-        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
-            continuation?.resume(throwing: AuthError.invalidCredential)
+    nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        Task { @MainActor in
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                continuation?.resume(throwing: AuthError.invalidCredential)
+                continuation = nil
+                return
+            }
+            continuation?.resume(returning: credential)
             continuation = nil
-            return
         }
-        continuation?.resume(returning: credential)
-        continuation = nil
     }
 
-    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
-        continuation?.resume(throwing: error)
-        continuation = nil
+    nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        Task { @MainActor in
+            continuation?.resume(throwing: error)
+            continuation = nil
+        }
     }
 
     // MARK: - ASAuthorizationControllerPresentationContextProviding
@@ -111,7 +121,7 @@ final class AuthManager {
 
     // Pending auth token for Telegram flow
     private var pendingAuthToken: String?
-    private var pollTimer: Timer?
+    private var pollTask: Task<Void, Never>?
     private var pollAttempts = 0
 
     // Prevent delegate from being deallocated during Apple Sign-In flow
@@ -126,6 +136,7 @@ final class AuthManager {
                 deleteJWT()
             } else {
                 isAuthenticated = true
+                Task { await NetworkManager.shared.setJWT(jwt) }
                 // Load cached role
                 if let roleStr = UserDefaults.standard.string(forKey: "userRole"),
                    let role = UserRole(rawValue: roleStr) {
@@ -205,7 +216,12 @@ final class AuthManager {
         } catch let error as ASAuthorizationError where error.code == .canceled {
             // User cancelled — not an error
             isAuthenticating = false
+        } catch let error as AuthError {
+            print("[AUTH] Apple Sign-In error: \(error)")
+            authError = L.authError
+            isAuthenticating = false
         } catch {
+            print("[AUTH] Apple Sign-In unexpected error: \(error)")
             authError = L.authError
             isAuthenticating = false
         }
@@ -252,7 +268,8 @@ final class AuthManager {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.scheme == "solostyle",
               components.host == "auth",
-              let jwt = components.queryItems?.first(where: { $0.name == "token" })?.value
+              let jwt = components.queryItems?.first(where: { $0.name == "token" })?.value,
+              jwt.components(separatedBy: ".").count == 3
         else { return }
 
         stopPolling()
@@ -266,7 +283,12 @@ final class AuthManager {
 
         // Notify backend
         if let jwt = loadJWT() {
-            try? await NetworkManager.shared.updateUserRole(role, jwt: jwt)
+            do {
+                try await NetworkManager.shared.updateUserRole(role, jwt: jwt)
+            } catch {
+                print("[AUTH] Failed to update role on backend: \(error)")
+                // Role saved locally, will sync on next launch
+            }
         }
     }
 
@@ -290,11 +312,16 @@ final class AuthManager {
     private func startPolling(authToken: String) {
         stopPolling()
         pollAttempts = 0
-        let maxAttempts = 60 // 5 minutes at 5-second intervals
+        let maxAttempts = 60
 
-        pollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
+        pollTask = Task { [weak self] in
+            var consecutiveErrors = 0
+            while !Task.isCancelled {
+                // Exponential backoff: 5s base, doubles on consecutive errors (max 30s)
+                let backoff = min(5_000_000_000 * UInt64(1 << min(consecutiveErrors, 3)), 30_000_000_000)
+                try? await Task.sleep(nanoseconds: backoff)
+                guard !Task.isCancelled, let self else { return }
+
                 self.pollAttempts += 1
                 if self.pollAttempts >= maxAttempts {
                     self.stopPolling()
@@ -303,27 +330,28 @@ final class AuthManager {
                     return
                 }
 
-                Task {
-                    await self.checkAuthStatus(authToken: authToken)
-                }
+                let success = await self.checkAuthStatus(authToken: authToken)
+                consecutiveErrors = success ? 0 : consecutiveErrors + 1
             }
         }
     }
 
     private func stopPolling() {
-        pollTimer?.invalidate()
-        pollTimer = nil
+        pollTask?.cancel()
+        pollTask = nil
     }
 
-    private func checkAuthStatus(authToken: String) async {
+    /// Returns true if the request succeeded (even if auth not yet complete), false on network error
+    private func checkAuthStatus(authToken: String) async -> Bool {
         do {
             let result = try await NetworkManager.shared.checkAuthToken(authToken)
             if let jwt = result {
                 stopPolling()
                 await completeAuth(jwt: jwt)
             }
+            return true
         } catch {
-            // Keep polling, don't show error yet
+            return false
         }
     }
 
@@ -399,7 +427,10 @@ final class AuthManager {
     private func saveJWT(_ token: String) {
         deleteJWT() // Remove old token first
 
-        guard let data = token.data(using: .utf8) else { return }
+        guard let data = token.data(using: .utf8) else {
+            print("[AUTH] Keychain save failed: cannot encode token to UTF-8")
+            return
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: keychainService,
@@ -410,7 +441,13 @@ final class AuthManager {
 
         let status = SecItemAdd(query as CFDictionary, nil)
         if status != errSecSuccess {
-            print("[AUTH] Keychain save failed: \(status)")
+            print("[AUTH] Keychain save failed: OSStatus \(status)")
+            // Retry after explicit delete (clean query without value/accessible)
+            deleteJWT()
+            let retryStatus = SecItemAdd(query as CFDictionary, nil)
+            if retryStatus != errSecSuccess {
+                print("[AUTH] Keychain save retry also failed: OSStatus \(retryStatus)")
+            }
         }
     }
 
@@ -420,6 +457,9 @@ final class AuthManager {
             kSecAttrService as String: keychainService,
             kSecAttrAccount as String: keychainAccount
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            print("[AUTH] Keychain delete failed: OSStatus \(status)")
+        }
     }
 }

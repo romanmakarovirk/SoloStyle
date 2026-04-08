@@ -136,7 +136,8 @@ final class LiveActivityManager {
         updateTimer?.invalidate()
 
         updateTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
+            guard let self else { return }
+            Task { @MainActor [weak self] in
                 self?.handleTimerTick(endTime: endTime, totalMinutes: totalMinutes)
             }
         }

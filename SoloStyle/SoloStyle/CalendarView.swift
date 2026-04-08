@@ -210,7 +210,7 @@ struct CalendarView: View {
                     }
                 }
                 .padding(.horizontal, Design.Spacing.m)
-                .padding(.vertical, 6) // extra room so scaled selected cell isn't clipped
+                .padding(.vertical, 12) // room for selected cell shadow glow
             }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -223,7 +223,6 @@ struct CalendarView: View {
                 }
             }
         }
-        .padding(.vertical, Design.Spacing.xs)
         .padding(.horizontal, Design.Spacing.xxs)
         .soloGlass(tint: Color.blue.opacity(0.08), shape: .roundedRect(Design.Radius.xl))
         .padding(.horizontal, Design.Spacing.s)

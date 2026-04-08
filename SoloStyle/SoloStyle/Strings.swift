@@ -406,6 +406,17 @@ enum L {
     static var roleClientDescription: String { isRu ? "Найти мастера, записаться с помощью AI" : "Find a professional, book with AI" }
     static var continueButton: String { isRu ? "Продолжить" : "Continue" }
     static var logout: String { isRu ? "Выйти" : "Log out" }
+    static var switchRole: String { isRu ? "Сменить роль" : "Switch role" }
+    static var switchToMaster: String { isRu ? "Перейти в режим мастера" : "Switch to professional mode" }
+    static var switchToClient: String { isRu ? "Перейти в режим клиента" : "Switch to client mode" }
+    static var currentRole: String { isRu ? "Текущая роль" : "Current role" }
+    static var accountSection: String { isRu ? "Аккаунт" : "Account" }
+    static var clientGreeting: String { isRu ? "Привет" : "Hi" }
+    static var whatAreYouLookingFor: String { isRu ? "Что ищешь сегодня?" : "What are you looking for?" }
+    static var orDivider: String { isRu ? "или" : "or" }
+    static var today: String { isRu ? "Сегодня" : "Today" }
+    static var appointmentsCount: String { isRu ? "записей" : "appointments" }
+    static var completedCount: String { isRu ? "готово" : "done" }
     static var authError: String { isRu ? "Ошибка авторизации" : "Authentication error" }
     static var openTelegram: String { isRu ? "Откройте Telegram" : "Open Telegram" }
     static var waitingForTelegram: String { isRu ? "Ожидание входа через Telegram..." : "Waiting for Telegram login..." }

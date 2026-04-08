@@ -23,7 +23,7 @@ final class StatsCache {
     private(set) var thisYearEarnings: Decimal = 0
 
     private var lastRefresh: Date = .distantPast
-    private let cacheTimeout: TimeInterval = 5.0 // Refresh every 5 seconds max
+    private let cacheTimeout: TimeInterval = 30.0 // Refresh every 30 seconds max
 
     private init() {}
 

@@ -27,11 +27,14 @@ class AIService {
         lastMasters = []
         defer { isLoading = false }
 
+        let lat = (-90.0...90.0).contains(latitude) ? latitude : 52.2978
+        let lon = (-180.0...180.0).contains(longitude) ? longitude : 104.2964
+
         do {
             let response = try await NetworkManager.shared.searchMasters(
                 query: query,
-                latitude: latitude,
-                longitude: longitude
+                latitude: lat,
+                longitude: lon
             )
             lastMasters = response.masters
             return response.answer
@@ -55,6 +58,7 @@ struct AIAssistantView: View {
     @State private var inputText = ""
     @State private var chatMessages: [ChatMessage] = []
     @State private var keyboardVisible = false
+    @State private var searchTask: Task<Void, Never>?
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -77,6 +81,10 @@ struct AIAssistantView: View {
                 .navigationTitle(L.aiAssistant)
                 .navigationBarTitleDisplayMode(.inline)
                 .onAppear { locationManager.requestPermission() }
+                .onDisappear {
+                    searchTask?.cancel()
+                    searchTask = nil
+                }
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
                     withAnimation(.easeOut(duration: 0.25)) { keyboardVisible = true }
                 }
@@ -311,12 +319,14 @@ struct AIAssistantView: View {
         }
         inputText = ""
 
-        Task {
+        searchTask?.cancel()
+        searchTask = Task {
             let response = await aiService.search(
                 query: text,
                 latitude: locationManager.latitude,
                 longitude: locationManager.longitude
             )
+            guard !Task.isCancelled else { return }
 
             let aiMsg = ChatMessage(content: response, isFromUser: false)
             withAnimation(.spring(response: 0.3)) {

@@ -117,6 +117,32 @@ nonisolated struct RoleUpdateRequest: Codable, Sendable {
     let role: String
 }
 
+nonisolated struct AppleAuthRequest: Codable, Sendable {
+    let identityToken: String
+    let userId: String
+    let firstName: String?
+    let lastName: String?
+    let email: String?
+
+    enum CodingKeys: String, CodingKey {
+        case identityToken = "identity_token"
+        case userId = "user_id"
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case email
+    }
+}
+
+nonisolated struct AppleAuthResponse: Codable, Sendable {
+    let ok: Bool
+    let jwt: String?
+}
+
+nonisolated struct ValidateResult: Sendable {
+    let user: TelegramUser
+    let role: String?
+}
+
 // MARK: - Network Errors
 
 nonisolated enum NetworkError: LocalizedError, Sendable {
@@ -125,6 +151,7 @@ nonisolated enum NetworkError: LocalizedError, Sendable {
     case serverError(Int)
     case decodingError
     case timeout
+    case tokenExpired
     case unknown(String)
 
     var errorDescription: String? {
@@ -137,6 +164,8 @@ nonisolated enum NetworkError: LocalizedError, Sendable {
             "Ошибка сервера: \(code)"
         case .decodingError:
             "Ошибка обработки ответа"
+        case .tokenExpired:
+            "Сессия истекла. Войдите заново."
         case .timeout:
             "Сервер не отвечает. Попробуйте позже."
         case .unknown(let msg):
@@ -171,10 +200,27 @@ actor NetworkManager {
         jwtToken = token
     }
 
-    private func authenticatedRequest(for url: URL) -> URLRequest {
+    /// Check if current JWT is expired (base64 decode middle segment, check `exp`)
+    var isJWTExpired: Bool {
+        guard let jwt = jwtToken else { return true }
+        let parts = jwt.split(separator: ".")
+        guard parts.count == 3 else { return true }
+        var base64 = String(parts[1])
+        let remainder = base64.count % 4
+        if remainder > 0 { base64 += String(repeating: "=", count: 4 - remainder) }
+        guard let data = Data(base64Encoded: base64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let exp = json["exp"] as? TimeInterval else { return true }
+        return Date().timeIntervalSince1970 >= exp
+    }
+
+    private func authenticatedRequest(for url: URL) throws -> URLRequest {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let jwt = jwtToken {
+            if isJWTExpired {
+                throw NetworkError.tokenExpired
+            }
             request.setValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
         }
         return request
@@ -202,11 +248,16 @@ actor NetworkManager {
 
     /// Check if auth token has been completed (polling)
     func checkAuthToken(_ token: String) async throws -> String? {
-        guard let url = URL(string: baseURL + "/auth/check-token?auth_token=\(token)") else {
+        guard let url = URL(string: baseURL + "/auth/check-token") else {
             throw NetworkError.invalidURL
         }
 
-        let (data, response) = try await session.data(for: URLRequest(url: url))
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(AuthTokenRequest(authToken: token))
+
+        let (data, response) = try await session.data(for: urlRequest)
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
@@ -216,8 +267,8 @@ actor NetworkManager {
         return result.completed ? result.jwt : nil
     }
 
-    /// Validate JWT and get user info
-    func validateToken(_ jwt: String) async throws -> TelegramUser {
+    /// Validate JWT and get user info + role
+    func validateToken(_ jwt: String) async throws -> ValidateResult {
         guard let url = URL(string: baseURL + "/auth/validate") else {
             throw NetworkError.invalidURL
         }
@@ -235,7 +286,7 @@ actor NetworkManager {
 
         let result = try decoder.decode(AuthValidateResponse.self, from: data)
         jwtToken = jwt
-        return result.user
+        return ValidateResult(user: result.user, role: result.role)
     }
 
     /// Update user role on backend
@@ -255,6 +306,36 @@ actor NetworkManager {
               (200...299).contains(httpResponse.statusCode) else {
             throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
         }
+    }
+
+    /// Authenticate via Apple Sign-In
+    func appleAuth(identityToken: String, userId: String, firstName: String?, lastName: String?, email: String?) async throws -> String {
+        guard let url = URL(string: baseURL + "/auth/apple") else {
+            throw NetworkError.invalidURL
+        }
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.httpBody = try JSONEncoder().encode(AppleAuthRequest(
+            identityToken: identityToken,
+            userId: userId,
+            firstName: firstName,
+            lastName: lastName,
+            email: email
+        ))
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw NetworkError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500)
+        }
+
+        let result = try decoder.decode(AppleAuthResponse.self, from: data)
+        guard let jwt = result.jwt else {
+            throw NetworkError.serverError(0)
+        }
+        return jwt
     }
 
     /// Parse voice input into CRM entities via backend

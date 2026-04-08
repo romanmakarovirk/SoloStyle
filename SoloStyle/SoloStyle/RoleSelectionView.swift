@@ -132,6 +132,8 @@ private struct RoleCard: View {
     let isSelected: Bool
     let action: () -> Void
 
+    private var primaryColor: Color { gradient.first ?? .blue }
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: Design.Spacing.m) {
@@ -166,12 +168,12 @@ private struct RoleCard: View {
                 // Checkmark
                 ZStack {
                     Circle()
-                        .strokeBorder(isSelected ? gradient.first! : .white.opacity(0.3), lineWidth: 2)
+                        .strokeBorder(isSelected ? primaryColor : .white.opacity(0.3), lineWidth: 2)
                         .frame(width: 28, height: 28)
 
                     if isSelected {
                         Circle()
-                            .fill(gradient.first!)
+                            .fill(primaryColor)
                             .frame(width: 20, height: 20)
 
                         Image(systemName: "checkmark")
@@ -182,13 +184,13 @@ private struct RoleCard: View {
             }
             .padding(Design.Spacing.m)
             .soloGlass(
-                tint: isSelected ? gradient.first!.opacity(0.15) : Color.white.opacity(0.05),
+                tint: isSelected ? primaryColor.opacity(0.15) : Color.white.opacity(0.05),
                 shape: .roundedRect(Design.Radius.l)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Design.Radius.l)
                     .strokeBorder(
-                        isSelected ? gradient.first!.opacity(0.5) : Color.clear,
+                        isSelected ? primaryColor.opacity(0.5) : Color.clear,
                         lineWidth: 1.5
                     )
             )

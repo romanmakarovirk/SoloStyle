@@ -292,8 +292,9 @@ struct SendReminderView: View {
         guard InputValidator.isValidPhone(phone) else { return }
         let cleanPhone = phone.replacingOccurrences(of: "[^0-9+]", with: "", options: .regularExpression)
         let sanitizedMessage = InputValidator.sanitize(currentMessage)
-        guard let encodedMessage = sanitizedMessage.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://wa.me/\(cleanPhone)?text=\(encodedMessage)") else { return }
+        var components = URLComponents(string: "https://wa.me/\(cleanPhone)")
+        components?.queryItems = [URLQueryItem(name: "text", value: sanitizedMessage)]
+        guard let url = components?.url else { return }
         UIApplication.shared.open(url)
         HapticManager.impact(.medium)
         dismiss()

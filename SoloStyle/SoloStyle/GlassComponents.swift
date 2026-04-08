@@ -1060,3 +1060,44 @@ struct GlassStatCard: View {
         .soloGlass(tint: tint.opacity(0.1), shape: .roundedRect(Design.Radius.l))
     }
 }
+
+// MARK: - Cached Async Image
+
+/// In-memory image cache to avoid re-downloading profile photos on every view appear.
+struct CachedAsyncImage<Content: View, Placeholder: View>: View {
+    let url: URL
+    @ViewBuilder let content: (Image) -> Content
+    @ViewBuilder let placeholder: () -> Placeholder
+
+    @State private var uiImage: UIImage?
+
+    private static var cache: NSCache<NSURL, UIImage> {
+        let c = _imageCache
+        return c
+    }
+
+    var body: some View {
+        if let uiImage {
+            content(Image(uiImage: uiImage))
+        } else {
+            placeholder()
+                .task(id: url) {
+                    if let cached = Self.cache.object(forKey: url as NSURL) {
+                        self.uiImage = cached
+                        return
+                    }
+                    guard let (data, _) = try? await URLSession.shared.data(from: url),
+                          let img = UIImage(data: data) else { return }
+                    Self.cache.setObject(img, forKey: url as NSURL)
+                    self.uiImage = img
+                }
+        }
+    }
+}
+
+/// Shared image cache singleton (NSCache is thread-safe)
+private let _imageCache: NSCache<NSURL, UIImage> = {
+    let cache = NSCache<NSURL, UIImage>()
+    cache.countLimit = 50
+    return cache
+}()

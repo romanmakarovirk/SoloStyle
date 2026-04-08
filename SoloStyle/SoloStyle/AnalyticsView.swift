@@ -637,11 +637,12 @@ struct ExportDataView: View {
         isExporting = true
         HapticManager.impact(.medium)
 
-        DispatchQueue.global(qos: .userInitiated).async {
+        let type = exportType
+        Task {
             let csv: String
             let filename: String
 
-            switch exportType {
+            switch type {
             case .clients:
                 csv = generateClientsCSV()
                 filename = "solostyle_clients.csv"
@@ -657,17 +658,13 @@ struct ExportDataView: View {
 
             do {
                 try csv.write(to: tempURL, atomically: true, encoding: .utf8)
-                DispatchQueue.main.async {
-                    isExporting = false
-                    exportedFileURL = tempURL
-                    showingShareSheet = true
-                    HapticManager.notification(.success)
-                }
+                isExporting = false
+                exportedFileURL = tempURL
+                showingShareSheet = true
+                HapticManager.notification(.success)
             } catch {
-                DispatchQueue.main.async {
-                    isExporting = false
-                    HapticManager.notification(.error)
-                }
+                isExporting = false
+                HapticManager.notification(.error)
             }
         }
     }

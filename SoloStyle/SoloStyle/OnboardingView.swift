@@ -116,7 +116,7 @@ struct OnboardingView: View {
                         Rectangle()
                             .fill(Design.Colors.textSecondary.opacity(0.3))
                             .frame(height: 1)
-                        Text("или")
+                        Text(L.orDivider)
                             .font(Design.Typography.caption1)
                             .foregroundStyle(Design.Colors.textSecondary)
                         Rectangle()
@@ -194,7 +194,8 @@ struct OnboardingView: View {
                     GlassButton(title: L.startUsingSoloStyle, icon: "sparkles") {
                         HapticManager.notification(.success)
                         confettiTrigger = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        Task {
+                            try? await Task.sleep(nanoseconds: 500_000_000)
                             completeOnboarding()
                         }
                     }
@@ -562,6 +563,7 @@ struct ConfettiView: View {
     }
 
     private func createParticles(in size: CGSize) {
+        guard particles.isEmpty else { return } // Prevent double invocation
         let colors: [Color] = [.blue, .green, .yellow, .orange, .pink, .purple]
         for i in 0..<50 {
             let particle = ConfettiParticle(
