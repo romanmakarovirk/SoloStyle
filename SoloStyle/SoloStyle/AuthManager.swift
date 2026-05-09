@@ -119,6 +119,20 @@ final class AuthManager {
     var currentUser: TelegramUser?
     var selectedRole: UserRole?
 
+    /// External ID matches `JWT.sub` on the backend: telegram_id stringified
+    /// for Telegram users, apple_user_id verbatim for Apple users.
+    /// Returns nil if no user is signed in.
+    var currentUserExternalId: String? {
+        if let tg = currentUser?.telegramId { return String(tg) }
+        if let apple = currentUser?.appleUserId, !apple.isEmpty { return apple }
+        return nil
+    }
+
+    /// Returns the JWT currently stored in Keychain, if any.
+    func currentJWT() -> String? {
+        loadJWT()
+    }
+
     // Pending auth token for Telegram flow
     private var pendingAuthToken: String?
     private var pollTask: Task<Void, Never>?

@@ -18,11 +18,13 @@ struct SoloStyleApp: App {
             Service.self,
             Appointment.self,
             Client.self,
-            WorkSchedule.self
+            WorkSchedule.self,
+            MessengerConversation.self,
+            MessengerMessage.self
         ])
 
-        // One-time migration: clear store after schema change (v3 — added Telegram auth fields)
-        let migrationKey = "db_schema_v3"
+        // One-time migration: clear store after schema change (v4 — added chat tables)
+        let migrationKey = "db_schema_v4"
         if !UserDefaults.standard.bool(forKey: migrationKey) {
             let urls = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
             if let appSupport = urls.first {
