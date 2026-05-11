@@ -21,6 +21,7 @@ struct SettingsView: View {
     @AppStorage("calendarSyncEnabled") private var calendarSyncEnabled = false
     @State private var authManager = AuthManager.shared
     @State private var showingRoleSwitchConfirm = false
+    @State private var showingIdCopiedToast = false
 
     var body: some View {
         NavigationStack {
@@ -38,6 +39,23 @@ struct SettingsView: View {
                         // Account section with role switching
                         settingsSection(title: L.accountSection) {
                             roleSwitchRow
+
+                            if let myId = authManager.currentUserExternalId {
+                                Divider().padding(.leading, 52)
+
+                                settingsRow(
+                                    icon: "doc.on.doc",
+                                    iconColor: .indigo,
+                                    title: "Мой ID для чата",
+                                    value: String(myId.prefix(8)) + (myId.count > 8 ? "…" : "")
+                                ) {
+                                    UIPasteboard.general.string = myId
+                                    HapticManager.notification(.success)
+                                    withAnimation(Design.Animation.smooth) {
+                                        showingIdCopiedToast = true
+                                    }
+                                }
+                            }
                         }
                         .animateOnAppearSubtle(delay: 0.03)
 
@@ -191,6 +209,29 @@ struct SettingsView: View {
                 .scrollBounceBehavior(.always)
             }
             .navigationTitle(L.settings)
+            .overlay(alignment: .top) {
+                if showingIdCopiedToast {
+                    HStack(spacing: Design.Spacing.s) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Design.Colors.accentSuccess)
+                        Text("ID скопирован")
+                            .font(Design.Typography.subheadline)
+                            .foregroundStyle(Design.Colors.textPrimary)
+                    }
+                    .padding(.horizontal, Design.Spacing.m)
+                    .padding(.vertical, Design.Spacing.s)
+                    .soloGlass(tint: Color.green.opacity(0.15), shape: .capsule)
+                    .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
+                    .padding(.top, Design.Spacing.s)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .task {
+                        try? await Task.sleep(nanoseconds: 1_800_000_000)
+                        withAnimation(Design.Animation.smooth) {
+                            showingIdCopiedToast = false
+                        }
+                    }
+                }
+            }
             .sheet(isPresented: $showingLanguageSheet) {
                 LanguageSelectionView()
             }
