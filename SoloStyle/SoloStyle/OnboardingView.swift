@@ -65,27 +65,25 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             Spacer(minLength: Design.Spacing.l)
 
-            // MARK: Hero — glass icon + glow
+            // MARK: Hero — app logo + glow
             ZStack {
-                // Soft glow halo behind icon
+                // Soft glow halo behind logo
                 Circle()
                     .fill(Design.Colors.accentPrimary.opacity(0.20))
                     .frame(width: 220, height: 220)
                     .blur(radius: 50)
 
-                // Glass icon container with gradient scissors
-                Image(systemName: "scissors")
-                    .font(.system(size: 76, weight: .light))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [Design.Colors.accentPrimary, .cyan],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                // App logo in glass container
+                Image("LogoMark")
+                    .resizable()
+                    .scaledToFit()
                     .frame(width: 160, height: 160)
-                    .soloGlass(tint: Color.blue.opacity(0.18), shape: .roundedRect(36))
-                    .shadow(color: Color.blue.opacity(0.25), radius: 30, y: 12)
+                    .clipShape(RoundedRectangle(cornerRadius: 36))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 36)
+                            .strokeBorder(Color.white.opacity(0.20), lineWidth: 0.5)
+                    )
+                    .shadow(color: Color.blue.opacity(0.30), radius: 30, y: 12)
             }
             .animateOnAppear(delay: 0.05)
 
