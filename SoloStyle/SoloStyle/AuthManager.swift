@@ -251,10 +251,12 @@ final class AuthManager {
                   let identityTokenData = credential.identityToken,
                   let identityToken = String(data: identityTokenData, encoding: .utf8)
             else {
-                authError = L.authError
+                print("[AUTH] Apple: missing identityToken in credential")
+                authError = "Apple вернул пустой токен — попробуйте ещё раз"
                 return
             }
 
+            print("[AUTH] Apple: got identityToken, user=\(credential.user.prefix(8))…, sending to backend")
             isAuthenticating = true
             authError = nil
 
@@ -266,14 +268,23 @@ final class AuthManager {
                     lastName: credential.fullName?.familyName,
                     email: credential.email
                 )
+                print("[AUTH] Apple: backend returned JWT, completing auth")
                 await completeAuth(jwt: jwt)
             } catch {
-                authError = L.authError
+                print("[AUTH] Apple: backend error: \(error)")
+                authError = "Сервер не принял Apple-вход: \(error.localizedDescription)"
                 isAuthenticating = false
             }
 
-        case .failure:
-            authError = L.authError
+        case .failure(let error):
+            // ASAuthorizationError.canceled is normal — user just dismissed
+            let ns = error as NSError
+            if ns.domain == ASAuthorizationError.errorDomain, ns.code == ASAuthorizationError.canceled.rawValue {
+                print("[AUTH] Apple: user cancelled")
+                return
+            }
+            print("[AUTH] Apple: authorization failed: \(error)")
+            authError = "Не удалось войти через Apple: \(error.localizedDescription)"
         }
     }
 
