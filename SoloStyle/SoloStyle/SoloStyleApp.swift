@@ -23,8 +23,8 @@ struct SoloStyleApp: App {
             MessengerMessage.self
         ])
 
-        // One-time migration: clear store after schema change (v4 — added chat tables)
-        let migrationKey = "db_schema_v4"
+        // One-time migration: clear store after schema change (v5 — added Master.avatarData)
+        let migrationKey = "db_schema_v5"
         if !UserDefaults.standard.bool(forKey: migrationKey) {
             let urls = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
             if let appSupport = urls.first {

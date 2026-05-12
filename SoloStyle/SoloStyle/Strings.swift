@@ -125,7 +125,7 @@ enum L {
     static var call: String { isRu ? "Звонок" : "Call" }
     static var message: String { isRu ? "SMS" : "Message" }
     static var email: String { isRu ? "Почта" : "Email" }
-    static var editClient: String { isRu ? "Редактировать клиента" : "Edit Client" }
+    static var editClient: String { isRu ? "Клиент" : "Edit Client" }
     static var newClient: String { isRu ? "Новый клиент" : "New Client" }
     static var name: String { isRu ? "Имя" : "Name" }
     static var phone: String { isRu ? "Телефон" : "Phone" }
@@ -154,13 +154,13 @@ enum L {
     static var addService: String { isRu ? "Добавить услугу" : "Add Service" }
     static var addServicesClients: String { isRu ? "Добавьте услуги для клиентов" : "Add services that clients can book" }
     static var createProfile: String { isRu ? "Создать профиль" : "Create Profile" }
-    static var editProfile: String { isRu ? "Редактировать профиль" : "Edit Profile" }
+    static var editProfile: String { isRu ? "Профиль" : "Edit Profile" }
     static var changePhoto: String { isRu ? "Сменить фото" : "Change Photo" }
     static var takePhoto: String { isRu ? "Сделать фото" : "Take Photo" }
     static var chooseFromLibrary: String { isRu ? "Выбрать из галереи" : "Choose from Library" }
     static var choosePhoto: String { isRu ? "Выбрать фото" : "Choose Photo" }
     static var businessName: String { isRu ? "Название бизнеса" : "Business Name" }
-    static var businessNameOptional: String { isRu ? "Название бизнеса (необязательно)" : "Business name (optional)" }
+    static var businessNameOptional: String { isRu ? "Название бизнеса" : "Business name (optional)" }
     static var yourNamePlaceholder: String { isRu ? "Ваше имя" : "Your name" }
     static var serviceName: String { isRu ? "Название услуги" : "Service Name" }
     static var serviceNamePlaceholder: String { isRu ? "например Стрижка" : "e.g. Haircut" }
@@ -169,7 +169,7 @@ enum L {
     static var preview: String { isRu ? "Предпросмотр" : "Preview" }
     static var deleteService: String { isRu ? "Удалить услугу" : "Delete Service" }
     static var deleteServiceQ: String { isRu ? "Удалить услугу?" : "Delete Service?" }
-    static var editService: String { isRu ? "Редактировать услугу" : "Edit Service" }
+    static var editService: String { isRu ? "Услуга" : "Edit Service" }
     static var bookingLink: String { isRu ? "Ваша ссылка для записи" : "Your Booking Link" }
     static var shareWithClients: String { isRu ? "Поделитесь с клиентами для записи" : "Share with clients to receive bookings" }
     static var copied: String { isRu ? "Скопировано!" : "Copied!" }

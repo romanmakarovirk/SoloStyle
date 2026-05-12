@@ -5,8 +5,9 @@
 //  Master profile and services with premium UX
 //
 
-import SwiftUI
+import PhotosUI
 import SwiftData
+import SwiftUI
 
 struct ProfileView: View {
     @Environment(\.modelContext) private var modelContext
@@ -102,72 +103,62 @@ struct ProfileView: View {
             .sheet(item: $selectedService) { service in
                 EditServiceView(service: service)
             }
+            .sheet(isPresented: $showingShareSheet) {
+                if let master,
+                   let url = URL(string: "https://solostyle.app/book/\(master.publicSlug)") {
+                    ShareSheet(items: [url])
+                }
+            }
         }
     }
 
-    // MARK: - Hero Card (redesigned, Chloe-style card)
+    // MARK: - Hero Card (centered passport-style with Liquid Glass blur)
 
     private var heroCard: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.m) {
-            // Top row: avatar + share icon
-            HStack(alignment: .top) {
-                ProfileAvatar(name: master?.name ?? "?", size: 72)
-                Spacer()
-                if let master {
-                    Button {
-                        HapticManager.impact(.light)
-                        shareBookingLink(master)
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(Design.Colors.textPrimary)
-                            .frame(width: 36, height: 36)
-                            .background(
-                                Circle()
-                                    .fill(Design.Colors.backgroundSecondary)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+        VStack(spacing: Design.Spacing.m) {
+            // Avatar — large, centered top
+            ProfileAvatar(
+                name: master?.name ?? "?",
+                imageData: master?.avatarData,
+                size: 88
+            )
 
-            // Name + role
-            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            // Name + role — centered
+            VStack(spacing: Design.Spacing.xxs) {
                 Text(master?.name ?? L.yourName)
-                    .font(.system(size: 26, weight: .bold))
+                    .font(.system(size: 24, weight: .bold))
                     .foregroundStyle(Design.Colors.textPrimary)
 
                 Text(roleSubtitle)
                     .font(.system(size: 14))
                     .foregroundStyle(Design.Colors.textSecondary)
             }
+            .multilineTextAlignment(.center)
 
-            // Service tag pills (up to 3 active services as chips)
+            // Service tag pills — centered HStack capped at 3 + "+N" overflow
             if !services.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Design.Spacing.xs) {
-                        ForEach(services.prefix(3)) { service in
-                            Text(service.name)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(Design.Colors.textPrimary)
-                                .padding(.horizontal, Design.Spacing.s)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(Design.Colors.backgroundSecondary)
-                                )
-                        }
-                        if services.count > 3 {
-                            Text("+\(services.count - 3)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(Design.Colors.accentPrimary)
-                                .padding(.horizontal, Design.Spacing.s)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Capsule()
-                                        .fill(Design.Colors.accentPrimary.opacity(0.10))
-                                )
-                        }
+                HStack(spacing: Design.Spacing.xs) {
+                    ForEach(services.prefix(3)) { service in
+                        Text(service.name)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Design.Colors.textPrimary)
+                            .padding(.horizontal, Design.Spacing.s)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Design.Colors.backgroundSecondary)
+                            )
+                    }
+                    if services.count > 3 {
+                        Text("+\(services.count - 3)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Design.Colors.accentPrimary)
+                            .padding(.horizontal, Design.Spacing.s)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Design.Colors.accentPrimary.opacity(0.10))
+                            )
                     }
                 }
             }
@@ -197,16 +188,34 @@ struct ProfileView: View {
             }
             .padding(.top, Design.Spacing.xs)
         }
+        .frame(maxWidth: .infinity)
         .padding(Design.Spacing.l)
-        .background(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(.background)
-                .shadow(color: .black.opacity(0.06), radius: 24, x: 0, y: 8)
-        )
+        .soloGlass(tint: Color.white.opacity(0.10), shape: .roundedRect(28))
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .strokeBorder(Design.Colors.textTertiary.opacity(0.10), lineWidth: 0.5)
+                .strokeBorder(Design.Colors.textTertiary.opacity(0.08), lineWidth: 0.5)
         )
+        .shadow(color: .black.opacity(0.06), radius: 24, x: 0, y: 8)
+        // Floating share icon, top-right of the card
+        .overlay(alignment: .topTrailing) {
+            if let master {
+                ShareLink(
+                    item: URL(string: "https://solostyle.app/book/\(master.publicSlug)")!,
+                    subject: Text("\(master.name) — \(L.bookingLink)"),
+                    message: Text(L.shareWithClients)
+                ) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Design.Colors.textPrimary)
+                        .frame(width: 36, height: 36)
+                        // Compensate for the SF Symbol's bottom-heavy bbox so the
+                        // arrow sits in the optical center of the circle.
+                        .padding(.bottom, 2)
+                        .background(Circle().fill(Design.Colors.backgroundSecondary))
+                }
+                .padding(Design.Spacing.s)
+            }
+        }
         .padding(.horizontal, Design.Spacing.m)
     }
 
@@ -923,8 +932,10 @@ struct EditProfileView: View {
     @State private var name = ""
     @State private var businessName = ""
     @State private var isLoading = false
-    @State private var showingImagePicker = false
-    @State private var showingPhotoOptions = false
+
+    // PhotosPicker state
+    @State private var pickerItem: PhotosPickerItem?
+    @State private var pickedImageData: Data?
 
     var body: some View {
         NavigationStack {
@@ -933,31 +944,43 @@ struct EditProfileView: View {
 
                 ScrollView {
                     VStack(spacing: Design.Spacing.l) {
-                        // Avatar
-                        ProfileAvatar(name: name.isEmpty ? "?" : name, size: 100)
-                            .padding(.top, Design.Spacing.l)
-                            .animateOnAppear(delay: 0.1)
+                        // Avatar — tapping anywhere on the circle opens the
+                        // system photo picker.
+                        PhotosPicker(
+                            selection: $pickerItem,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
+                            ZStack(alignment: .bottomTrailing) {
+                                ProfileAvatar(
+                                    name: name.isEmpty ? "?" : name,
+                                    imageData: pickedImageData ?? master?.avatarData,
+                                    size: 110
+                                )
 
-                        Button {
-                            HapticManager.selection()
-                            showingPhotoOptions = true
-                        } label: {
-                            Label(L.changePhoto, systemImage: "camera.fill")
-                                .font(Design.Typography.subheadline)
-                                .foregroundStyle(Design.Colors.accentPrimary)
-                        }
-                        .animateOnAppear(delay: 0.2)
-                        .confirmationDialog(L.choosePhoto, isPresented: $showingPhotoOptions) {
-                            Button(L.takePhoto) {
-                                HapticManager.selection()
-                                showingImagePicker = true
+                                // Camera badge overlay
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 32, height: 32)
+                                    .background(Circle().fill(Design.Colors.accentPrimary))
+                                    .overlay(
+                                        Circle()
+                                            .stroke(Design.Colors.backgroundPrimary, lineWidth: 3)
+                                    )
                             }
-                            Button(L.chooseFromLibrary) {
-                                HapticManager.selection()
-                                showingImagePicker = true
-                            }
-                            Button(L.cancel, role: .cancel) {}
                         }
+                        .buttonStyle(.plain)
+                        .padding(.top, Design.Spacing.l)
+                        .animateOnAppear(delay: 0.1)
+                        .onChange(of: pickerItem) { _, newItem in
+                            Task { await loadPickedImage(newItem) }
+                        }
+
+                        Text(L.changePhoto)
+                            .font(Design.Typography.subheadline)
+                            .foregroundStyle(Design.Colors.accentPrimary)
+                            .animateOnAppear(delay: 0.2)
 
                         VStack(spacing: Design.Spacing.m) {
                             FormField(title: L.name, placeholder: L.yourNamePlaceholder, text: $name, icon: "person")
@@ -1008,12 +1031,33 @@ struct EditProfileView: View {
             if let master {
                 master.name = sanitizedName
                 master.businessName = sanitizedBusinessName.isEmpty ? nil : sanitizedBusinessName
+                if let data = pickedImageData {
+                    master.avatarData = data
+                }
             } else {
                 let newMaster = Master(name: sanitizedName, businessName: sanitizedBusinessName.isEmpty ? nil : sanitizedBusinessName)
+                newMaster.avatarData = pickedImageData
                 modelContext.insert(newMaster)
             }
             HapticManager.notification(.success)
             dismiss()
+        }
+    }
+
+    /// Load picked PhotosPickerItem into Data and stash in @State so the avatar
+    /// preview updates instantly. The actual persistence happens in
+    /// `saveProfile()` once the user taps Save.
+    private func loadPickedImage(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        if let data = try? await item.loadTransferable(type: Data.self) {
+            await MainActor.run {
+                pickedImageData = data
+                HapticManager.notification(.success)
+            }
+        } else {
+            await MainActor.run {
+                HapticManager.notification(.error)
+            }
         }
     }
 }

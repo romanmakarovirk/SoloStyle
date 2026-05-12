@@ -968,6 +968,9 @@ struct GlassToggle: View {
 
 struct ProfileAvatar: View {
     let name: String
+    /// Optional user-uploaded image data. When provided AND decodable as
+    /// `UIImage`, the photo is rendered instead of the initials fallback.
+    var imageData: Data? = nil
     var size: CGFloat = 60
     var showStatus: Bool = false
 
@@ -979,14 +982,28 @@ struct ProfileAvatar: View {
         return String(name.prefix(2)).uppercased()
     }
 
+    private var uiImage: UIImage? {
+        guard let imageData else { return nil }
+        return UIImage(data: imageData)
+    }
+
     var body: some View {
         ZStack {
-            Text(initials)
-                .font(.system(size: size * 0.35, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: size, height: size)
+            if let uiImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
+            } else {
+                Text(initials)
+                    .font(.system(size: size * 0.35, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: size, height: size)
+                    .background(Circle().fill(Color.blue.opacity(0.4)))
+            }
         }
-        .soloGlass(tint: Color.blue.opacity(0.4), shape: .circle)
+        .frame(width: size, height: size)
         .overlay(alignment: .bottomTrailing) {
             if showStatus {
                 Circle()

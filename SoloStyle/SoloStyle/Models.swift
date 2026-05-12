@@ -136,6 +136,11 @@ final class Master {
     var telegramPhotoUrl: String?
     var isAuthenticated: Bool = false
 
+    /// User-uploaded avatar photo (chosen via PhotosPicker in EditProfileView).
+    /// Stored as a sidecar file rather than inline in the SQLite DB for perf.
+    @Attribute(.externalStorage)
+    var avatarData: Data?
+
     var role: UserRole {
         get { UserRole(rawValue: userRole) ?? .master }
         set { userRole = newValue.rawValue }
