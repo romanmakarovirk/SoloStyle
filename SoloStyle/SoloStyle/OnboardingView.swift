@@ -151,15 +151,28 @@ struct OnboardingView: View {
                     .animateOnAppear(delay: 0.35)
 
                     // Apple — secondary (native HIG-compliant)
-                    SignInWithAppleButton(.signIn) { request in
-                        request.requestedScopes = [.fullName, .email]
-                    } onCompletion: { result in
-                        Task { await authManager.handleAppleSignIn(result: result) }
+                    //
+                    // ⚠️ HIDDEN until we get a paid Apple Developer Program account.
+                    // Personal Teams (free) cannot provision the
+                    // `com.apple.developer.applesignin` entitlement, so
+                    // showing this button on a device build would either
+                    // (a) fail to provision, or (b) silently no-op when tapped.
+                    //
+                    // To re-enable: pay $99/year for Apple Developer Program,
+                    // restore CODE_SIGN_ENTITLEMENTS in project.pbxproj
+                    // (pointing to SoloStyle/SoloStyle.entitlements), and
+                    // delete this `if false` guard.
+                    if false {
+                        SignInWithAppleButton(.signIn) { request in
+                            request.requestedScopes = [.fullName, .email]
+                        } onCompletion: { result in
+                            Task { await authManager.handleAppleSignIn(result: result) }
+                        }
+                        .signInWithAppleButtonStyle(.black)
+                        .frame(height: 54)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                        .animateOnAppear(delay: 0.42)
                     }
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 18))
-                    .animateOnAppear(delay: 0.42)
                 }
 
                 if let error = authManager.authError {
