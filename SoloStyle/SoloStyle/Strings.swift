@@ -204,6 +204,11 @@ enum L {
     // MARK: - Onboarding
     static var welcomeTitle: String { isRu ? "Добро пожаловать в SoloStyle" : "Welcome to SoloStyle" }
     static var welcomeSubtitle: String { isRu ? "Самый простой способ управлять записями" : "The simplest way to manage your appointments" }
+    static var welcomeGreeting: String { isRu ? "Добро пожаловать в" : "Welcome to" }
+    static var welcomeAppName: String { "SoloStyle" }
+    static var welcomeTagline: String { isRu ? "Клиенты, расписание и аналитика — в одном приложении с AI-помощником" : "Clients, schedule and analytics — in one app with an AI assistant" }
+    static var continueWithApple: String { isRu ? "Войти через Apple" : "Continue with Apple" }
+    static var termsAgreement: String { isRu ? "Продолжая, вы соглашаетесь с условиями использования и политикой конфиденциальности" : "By continuing, you agree to our Terms and Privacy Policy" }
     static var featureManage: String { isRu ? "Управление записями" : "Manage appointments" }
     static var featureReminders: String { isRu ? "Напоминания клиентам" : "Send reminders" }
     static var featureBooking: String { isRu ? "Ссылка для записи" : "Share booking link" }

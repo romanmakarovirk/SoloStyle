@@ -63,87 +63,127 @@ struct OnboardingView: View {
 
     private var telegramLoginContent: some View {
         VStack(spacing: 0) {
-            VStack(spacing: Design.Spacing.xl) {
-                Spacer()
+            Spacer(minLength: Design.Spacing.l)
 
-                // Animated Logo
-                AnimatedLogoView()
-                    .animateOnAppear(delay: 0.1)
+            // MARK: Hero — glass icon + glow
+            ZStack {
+                // Soft glow halo behind icon
+                Circle()
+                    .fill(Design.Colors.accentPrimary.opacity(0.20))
+                    .frame(width: 220, height: 220)
+                    .blur(radius: 50)
 
-                VStack(spacing: Design.Spacing.m) {
-                    Text(L.welcomeTitle)
-                        .font(Design.Typography.largeTitle)
-                        .multilineTextAlignment(.center)
-                        .animateOnAppear(delay: 0.2)
-
-                    Text(L.welcomeSubtitle)
-                        .font(Design.Typography.body)
-                        .foregroundStyle(Design.Colors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .animateOnAppear(delay: 0.3)
-                }
-
-                VStack(alignment: .leading, spacing: Design.Spacing.m) {
-                    AnimatedFeatureItem(icon: "calendar", text: L.featureManage, delay: 0.4)
-                    AnimatedFeatureItem(icon: "bell.badge", text: L.featureReminders, delay: 0.5)
-                    AnimatedFeatureItem(icon: "link", text: L.featureBooking, delay: 0.6)
-                }
-                .padding(.horizontal, Design.Spacing.xl)
-
-                Spacer()
+                // Glass icon container with gradient scissors
+                Image(systemName: "scissors")
+                    .font(.system(size: 76, weight: .light))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Design.Colors.accentPrimary, .cyan],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 160, height: 160)
+                    .soloGlass(tint: Color.blue.opacity(0.18), shape: .roundedRect(36))
+                    .shadow(color: Color.blue.opacity(0.25), radius: 30, y: 12)
             }
-            .padding(Design.Spacing.m)
+            .animateOnAppear(delay: 0.05)
 
-            // Login buttons
+            // MARK: Title
+            VStack(spacing: Design.Spacing.s) {
+                (Text(L.welcomeGreeting)
+                    .foregroundStyle(Design.Colors.textPrimary)
+                 + Text("\n")
+                 + Text(L.welcomeAppName)
+                    .foregroundStyle(Design.Colors.accentPrimary))
+                    .font(.system(size: 34, weight: .bold))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(2)
+                    .animateOnAppear(delay: 0.15)
+
+                Text(L.welcomeTagline)
+                    .font(Design.Typography.body)
+                    .foregroundStyle(Design.Colors.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Design.Spacing.l)
+                    .animateOnAppear(delay: 0.25)
+            }
+            .padding(.top, Design.Spacing.xl)
+
+            Spacer(minLength: Design.Spacing.xl)
+
+            // MARK: Auth buttons stack
             VStack(spacing: Design.Spacing.s) {
                 if authManager.isAuthenticating {
                     HStack(spacing: Design.Spacing.s) {
                         ProgressView()
-                            .tint(.white)
+                            .tint(Design.Colors.accentPrimary)
                         Text(L.waitingForTelegram)
                             .font(Design.Typography.subheadline)
                             .foregroundStyle(Design.Colors.textSecondary)
                     }
-                    .padding(.vertical, Design.Spacing.m)
+                    .frame(maxWidth: .infinity, minHeight: 54)
+                    .soloGlass(tint: Color.blue.opacity(0.10), shape: .roundedRect(18))
+                    .transition(.opacity.combined(with: .scale))
                 } else {
-                    GlassButton(title: L.continueWithTelegram, icon: "paperplane.fill") {
+                    // Telegram — primary (blue glass)
+                    Button {
                         HapticManager.impact(.medium)
                         Task { await authManager.startTelegramAuth() }
+                    } label: {
+                        HStack(spacing: Design.Spacing.s) {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 17, weight: .semibold))
+                            Text(L.continueWithTelegram)
+                                .font(.system(size: 17, weight: .semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 54)
+                        .background(
+                            LinearGradient(
+                                colors: [Design.Colors.accentPrimary, Color.blue.opacity(0.85)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 18)
+                        )
+                        .shadow(color: Design.Colors.accentPrimary.opacity(0.35), radius: 18, y: 8)
                     }
+                    .buttonStyle(.plain)
+                    .animateOnAppear(delay: 0.35)
 
-                    // Divider
-                    HStack {
-                        Rectangle()
-                            .fill(Design.Colors.textSecondary.opacity(0.3))
-                            .frame(height: 1)
-                        Text(L.orDivider)
-                            .font(Design.Typography.caption1)
-                            .foregroundStyle(Design.Colors.textSecondary)
-                        Rectangle()
-                            .fill(Design.Colors.textSecondary.opacity(0.3))
-                            .frame(height: 1)
-                    }
-
-                    // Apple Sign-In
+                    // Apple — secondary (native HIG-compliant)
                     SignInWithAppleButton(.signIn) { request in
                         request.requestedScopes = [.fullName, .email]
                     } onCompletion: { result in
-                        Task {
-                            await authManager.handleAppleSignIn(result: result)
-                        }
+                        Task { await authManager.handleAppleSignIn(result: result) }
                     }
-                    .signInWithAppleButtonStyle(.white)
-                    .frame(height: 50)
-                    .cornerRadius(Design.Radius.m)
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 54)
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .animateOnAppear(delay: 0.42)
                 }
 
                 if let error = authManager.authError {
                     Text(error)
                         .font(Design.Typography.caption1)
-                        .foregroundStyle(.red.opacity(0.8))
+                        .foregroundStyle(Color.red.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, Design.Spacing.xs)
+                        .transition(.opacity)
                 }
+
+                // Terms / privacy footer
+                Text(L.termsAgreement)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Design.Colors.textTertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, Design.Spacing.s)
+                    .padding(.horizontal, Design.Spacing.s)
+                    .animateOnAppear(delay: 0.55)
             }
-            .padding(Design.Spacing.m)
+            .padding(.horizontal, Design.Spacing.l)
+            .padding(.bottom, Design.Spacing.l)
             .animation(Design.Animation.smooth, value: authManager.isAuthenticating)
         }
     }
