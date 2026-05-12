@@ -265,7 +265,9 @@ enum L {
     static var exportClientsDesc: String { isRu ? "Экспорт данных клиентов, контактов и истории визитов" : "Export all client data including contact info and visit history" }
     static var exportAppointmentsDesc: String { isRu ? "Экспорт всех записей с датами, услугами и статусами" : "Export all appointments with dates, services, and status" }
     static var exportRevenueDesc: String { isRu ? "Экспорт помесячной разбивки доходов" : "Export monthly revenue breakdown" }
-    static var currencyCode: String { isRu ? "RUB" : "USD" }
+    /// SoloStyle is a Russian-market product; prices and earnings are always
+    /// shown in roubles regardless of the device locale.
+    static var currencyCode: String { "RUB" }
 
     // MARK: - Gallery
     static var portfolio: String { isRu ? "Портфолио" : "Portfolio" }

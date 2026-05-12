@@ -105,115 +105,137 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Hero Card
+    // MARK: - Hero Card (redesigned, Chloe-style card)
 
     private var heroCard: some View {
-        GlassCard(tint: Color.blue.opacity(0.08)) {
-            VStack(spacing: 0) {
-                // Top: Avatar + Info
-                HStack(spacing: Design.Spacing.m) {
-                    // Avatar with online pulse
-                    ZStack(alignment: .bottomTrailing) {
-                        ProfileAvatar(name: master?.name ?? "?", size: 80)
-
-                        // Online status dot
-                        ZStack {
-                            Circle()
-                                .fill(Design.Colors.accentSuccess)
-                                .frame(width: 20, height: 20)
-                            Circle()
-                                .stroke(Design.Colors.backgroundPrimary, lineWidth: 3)
-                                .frame(width: 20, height: 20)
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
-                        Text(master?.name ?? L.yourName)
-                            .font(.system(size: 24, weight: .bold, design: .rounded))
+        VStack(alignment: .leading, spacing: Design.Spacing.m) {
+            // Top row: avatar + share icon
+            HStack(alignment: .top) {
+                ProfileAvatar(name: master?.name ?? "?", size: 72)
+                Spacer()
+                if let master {
+                    Button {
+                        HapticManager.impact(.light)
+                        shareBookingLink(master)
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(Design.Colors.textPrimary)
-
-                        if let businessName = master?.businessName, !businessName.isEmpty {
-                            HStack(spacing: Design.Spacing.xxs) {
-                                Image(systemName: "building.2.fill")
-                                    .font(.system(size: 11))
-                                Text(businessName)
-                                    .font(.system(size: 14, weight: .medium))
-                            }
-                            .foregroundStyle(Design.Colors.textSecondary)
-                        }
-
-                        if let master {
-                            HStack(spacing: Design.Spacing.xxs) {
-                                Image(systemName: "clock.fill")
-                                    .font(.system(size: 10))
-                                Text("\(L.memberSince) \(master.createdAt.formatted(.dateTime.month(.abbreviated).year()))")
-                                    .font(.system(size: 12))
-                            }
-                            .foregroundStyle(Design.Colors.textTertiary)
-                            .padding(.top, 2)
-                        }
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle()
+                                    .fill(Design.Colors.backgroundSecondary)
+                            )
                     }
-
-                    Spacer()
-                }
-
-                // Divider
-                Rectangle()
-                    .fill(Design.Colors.textTertiary.opacity(0.15))
-                    .frame(height: 0.5)
-                    .padding(.vertical, Design.Spacing.m)
-
-                // Bottom: Stats row with large numbers
-                HStack(spacing: 0) {
-                    heroStat(
-                        value: "\(statsCache.clientCount)",
-                        label: L.clients,
-                        icon: "person.2.fill",
-                        color: .blue
-                    )
-
-                    // Separator
-                    Rectangle()
-                        .fill(Design.Colors.textTertiary.opacity(0.2))
-                        .frame(width: 0.5, height: 36)
-
-                    heroStat(
-                        value: "\(statsCache.appointmentCount)",
-                        label: L.appointments,
-                        icon: "calendar.badge.checkmark",
-                        color: .green
-                    )
-
-                    // Separator
-                    Rectangle()
-                        .fill(Design.Colors.textTertiary.opacity(0.2))
-                        .frame(width: 0.5, height: 36)
-
-                    heroStat(
-                        value: "\(services.count)",
-                        label: L.services,
-                        icon: "scissors",
-                        color: .purple
-                    )
+                    .buttonStyle(.plain)
                 }
             }
+
+            // Name + role
+            VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                Text(master?.name ?? L.yourName)
+                    .font(.system(size: 26, weight: .bold))
+                    .foregroundStyle(Design.Colors.textPrimary)
+
+                Text(roleSubtitle)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Design.Colors.textSecondary)
+            }
+
+            // Service tag pills (up to 3 active services as chips)
+            if !services.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Design.Spacing.xs) {
+                        ForEach(services.prefix(3)) { service in
+                            Text(service.name)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Design.Colors.textPrimary)
+                                .padding(.horizontal, Design.Spacing.s)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .fill(Design.Colors.backgroundSecondary)
+                                )
+                        }
+                        if services.count > 3 {
+                            Text("+\(services.count - 3)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(Design.Colors.accentPrimary)
+                                .padding(.horizontal, Design.Spacing.s)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule()
+                                        .fill(Design.Colors.accentPrimary.opacity(0.10))
+                                )
+                        }
+                    }
+                }
+            }
+
+            // Stats row — Clients · Appointments · Services
+            HStack(spacing: 0) {
+                heroStat(
+                    icon: "person.2.fill",
+                    value: "\(statsCache.clientCount)",
+                    label: L.clients,
+                    color: .blue
+                )
+                heroStatDivider
+                heroStat(
+                    icon: "calendar.badge.checkmark",
+                    value: "\(statsCache.appointmentCount)",
+                    label: L.appointments,
+                    color: .green
+                )
+                heroStatDivider
+                heroStat(
+                    icon: "scissors",
+                    value: "\(services.count)",
+                    label: L.services,
+                    color: .purple
+                )
+            }
+            .padding(.top, Design.Spacing.xs)
         }
+        .padding(Design.Spacing.l)
+        .background(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(.background)
+                .shadow(color: .black.opacity(0.06), radius: 24, x: 0, y: 8)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Design.Colors.textTertiary.opacity(0.10), lineWidth: 0.5)
+        )
         .padding(.horizontal, Design.Spacing.m)
     }
 
-    private func heroStat(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: Design.Spacing.xxs) {
+    private var roleSubtitle: String {
+        if let business = master?.businessName, !business.isEmpty {
+            return business
+        }
+        return L.roleMaster
+    }
+
+    private var heroStatDivider: some View {
+        Rectangle()
+            .fill(Design.Colors.textTertiary.opacity(0.18))
+            .frame(width: 0.5, height: 32)
+    }
+
+    private func heroStat(icon: String, value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(color)
                 Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Design.Colors.textPrimary)
                     .contentTransition(.numericText())
             }
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 11))
                 .foregroundStyle(Design.Colors.textTertiary)
         }
         .frame(maxWidth: .infinity)
@@ -1151,10 +1173,8 @@ struct ServicePreviewCard: View {
     }
 
     private var priceText: String {
-        if let value = Decimal(string: price) {
-            return "$\(value)"
-        }
-        return "$0"
+        let value = Decimal(string: price) ?? 0
+        return CurrencyFormat.localized.string(from: value as NSDecimalNumber) ?? "0 ₽"
     }
 }
 

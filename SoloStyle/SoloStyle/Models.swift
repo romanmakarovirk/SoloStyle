@@ -103,10 +103,14 @@ enum UserRole: String, Codable, Sendable {
 // MARK: - Currency Formatter (cached)
 
 enum CurrencyFormat {
+    /// Forced ₽ regardless of device locale — SoloStyle is a RU-market product,
+    /// so prices and earnings are always displayed in roubles.
     static let localized: NumberFormatter = {
         let f = NumberFormatter()
         f.numberStyle = .currency
-        f.currencyCode = Locale.current.currency?.identifier ?? "RUB"
+        f.currencyCode = "RUB"
+        f.locale = Locale(identifier: "ru_RU")
+        f.maximumFractionDigits = 0
         return f
     }()
 }
