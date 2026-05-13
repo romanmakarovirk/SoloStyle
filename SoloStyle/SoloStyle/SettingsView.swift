@@ -20,7 +20,6 @@ struct SettingsView: View {
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("calendarSyncEnabled") private var calendarSyncEnabled = false
     @State private var authManager = AuthManager.shared
-    @State private var showingRoleSwitchConfirm = false
     @State private var showingIdCopiedToast = false
 
     var body: some View {
@@ -265,85 +264,101 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Role Switch Row
+    // MARK: - Role Switch Row (segmented picker — clearer than two stacked rows)
+
+    @State private var pendingRoleSwitchTo: UserRole?
 
     private var roleSwitchRow: some View {
-        let currentRole = authManager.selectedRole
-        let isMaster = currentRole == .master
-        let targetRoleName = isMaster ? L.switchToClient : L.switchToMaster
-        let roleIcon = isMaster ? "scissors" : "sparkles"
-        let roleColor: Color = isMaster ? .blue : .orange
-        let roleName = isMaster ? L.roleMaster : L.roleClient
+        let currentRole = authManager.selectedRole ?? .master
 
-        return VStack(spacing: 0) {
-            // Current role display
-            HStack(spacing: Design.Spacing.m) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(roleColor.opacity(0.15))
-                        .frame(width: 36, height: 36)
+        return VStack(alignment: .leading, spacing: Design.Spacing.s) {
+            Text(L.iAmNow)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Design.Colors.textSecondary)
 
-                    Image(systemName: roleIcon)
-                        .font(.system(size: 18))
-                        .foregroundStyle(roleColor)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L.currentRole)
-                        .font(Design.Typography.body)
-                        .foregroundStyle(Design.Colors.textPrimary)
-                    Text(roleName)
-                        .font(Design.Typography.caption1)
-                        .foregroundStyle(roleColor)
-                        .fontWeight(.semibold)
-                }
-
-                Spacer()
+            HStack(spacing: 4) {
+                roleSegment(
+                    role: .master,
+                    title: L.roleMaster,
+                    icon: "scissors",
+                    accent: .blue,
+                    isSelected: currentRole == .master
+                )
+                roleSegment(
+                    role: .client,
+                    title: L.roleClient,
+                    icon: "sparkles",
+                    accent: .orange,
+                    isSelected: currentRole == .client
+                )
             }
-            .padding(Design.Spacing.m)
+            .padding(4)
+            .background(
+                RoundedRectangle(cornerRadius: Design.Radius.m)
+                    .fill(Design.Colors.backgroundSecondary)
+            )
 
-            Divider().padding(.leading, 52)
-
-            // Switch role button
-            Button {
-                HapticManager.selection()
-                showingRoleSwitchConfirm = true
-            } label: {
-                HStack(spacing: Design.Spacing.m) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.purple.opacity(0.15))
-                            .frame(width: 36, height: 36)
-
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.purple)
-                    }
-
-                    Text(targetRoleName)
-                        .font(Design.Typography.body)
-                        .foregroundStyle(Design.Colors.textPrimary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Design.Colors.textTertiary)
-                }
-                .padding(Design.Spacing.m)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .confirmationDialog(L.switchRole, isPresented: $showingRoleSwitchConfirm, titleVisibility: .visible) {
-                Button(targetRoleName) {
-                    let newRole: UserRole = isMaster ? .client : .master
+            Text(roleHelperText(for: currentRole))
+                .font(.system(size: 12))
+                .foregroundStyle(Design.Colors.textTertiary)
+                .padding(.top, 2)
+        }
+        .padding(Design.Spacing.m)
+        .confirmationDialog(
+            L.switchRole,
+            isPresented: Binding(
+                get: { pendingRoleSwitchTo != nil },
+                set: { if !$0 { pendingRoleSwitchTo = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let target = pendingRoleSwitchTo {
+                Button(target == .master ? L.switchToMaster : L.switchToClient) {
                     Task {
-                        await authManager.selectRole(newRole)
+                        await authManager.selectRole(target)
+                        pendingRoleSwitchTo = nil
                     }
                 }
-                Button(L.cancel, role: .cancel) { }
+                Button(L.cancel, role: .cancel) { pendingRoleSwitchTo = nil }
             }
         }
+    }
+
+    private func roleSegment(
+        role: UserRole,
+        title: String,
+        icon: String,
+        accent: Color,
+        isSelected: Bool
+    ) -> some View {
+        Button {
+            guard !isSelected else { return }
+            HapticManager.selection()
+            pendingRoleSwitchTo = role
+        } label: {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 15, weight: isSelected ? .semibold : .medium))
+            }
+            .foregroundStyle(isSelected ? .white : Design.Colors.textPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Design.Spacing.s)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: Design.Radius.s)
+                        .fill(accent)
+                        .shadow(color: accent.opacity(0.3), radius: 6, y: 2)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .animation(Design.Animation.smooth, value: isSelected)
+    }
+
+    private func roleHelperText(for role: UserRole) -> String {
+        role == .master ? L.roleMasterDescription : L.roleClientDescription
     }
 
     // MARK: - Client Profile Header

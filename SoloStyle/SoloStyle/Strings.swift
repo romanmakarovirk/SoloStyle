@@ -417,6 +417,7 @@ enum L {
     static var switchToMaster: String { isRu ? "Перейти в режим мастера" : "Switch to professional mode" }
     static var switchToClient: String { isRu ? "Перейти в режим клиента" : "Switch to client mode" }
     static var currentRole: String { isRu ? "Текущая роль" : "Current role" }
+    static var iAmNow: String { isRu ? "Я сейчас" : "I'm now" }
     static var accountSection: String { isRu ? "Аккаунт" : "Account" }
     static var clientGreeting: String { isRu ? "Привет" : "Hi" }
     static var whatAreYouLookingFor: String { isRu ? "Что ищешь сегодня?" : "What are you looking for?" }
