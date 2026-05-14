@@ -42,12 +42,17 @@ struct ChatListView: View {
         visibleConversations.filter { !$0.isPinned }
     }
 
+    private var activeConversations: [MessengerConversation] {
+        allConversations.filter { $0.archivedAt == nil }
+    }
+
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottomTrailing) {
+            ZStack {
                 Design.Colors.backgroundPrimary.ignoresSafeArea()
 
-                if allConversations.filter({ $0.archivedAt == nil }).isEmpty {
+                if activeConversations.isEmpty {
+                    // Vertically + horizontally centred empty state.
                     EmptyStateView(
                         icon: "bubble.left.and.bubble.right",
                         title: L.chatsEmptyTitle,
@@ -55,12 +60,15 @@ struct ChatListView: View {
                         actionTitle: L.newChat,
                         action: { showingStartSheet = true }
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     listContent
                 }
-
-                // FAB compose button
-                if !allConversations.isEmpty {
+            }
+            // FAB lives in a separate overlay so the empty-state inside the
+            // ZStack isn't pulled toward .bottomTrailing alignment.
+            .overlay(alignment: .bottomTrailing) {
+                if !activeConversations.isEmpty {
                     composeFAB
                         .padding(.trailing, Design.Spacing.l)
                         .padding(.bottom, 100)  // above tab bar
