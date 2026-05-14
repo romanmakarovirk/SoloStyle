@@ -496,8 +496,11 @@ private struct ClientSearchTab: View {
     }
 
     private func runQuickAction(_ action: QuickAction) {
+        // Insert the Russian prompt into the input field.  Don't auto-send —
+        // user may want to edit before tapping the arrow.
+        HapticManager.impact(.light)
         inputText = action.prompt
-        send()
+        inputFocused = true
     }
 }
 

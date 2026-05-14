@@ -337,8 +337,11 @@ struct AIAssistantView: View {
     }
 
     private func runQuickAction(_ action: QuickAction) {
+        // Insert the Russian prompt into the input field.  Don't auto-send —
+        // user may want to edit before tapping the arrow.
+        HapticManager.impact(.light)
         inputText = action.prompt
-        send()
+        inputFocused = true
     }
 }
 
@@ -356,12 +359,15 @@ enum QuickAction: CaseIterable {
         }
     }
 
+    /// User-facing prompt placed into the input field when the chip is
+    /// tapped.  Russian by default; the search backend translates it on
+    /// the server side via the LLM layer.
     var prompt: String {
         switch self {
-        case .haircut: "haircut"
-        case .manicure: "manicure"
-        case .massage: "massage"
-        case .makeup: "makeup"
+        case .haircut: "Мне надо сделать стрижку"
+        case .manicure: "Мне надо сделать маникюр"
+        case .massage: "Мне надо сделать массаж"
+        case .makeup: "Мне надо сделать макияж"
         }
     }
 
