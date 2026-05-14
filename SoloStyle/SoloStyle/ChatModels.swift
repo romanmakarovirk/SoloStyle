@@ -36,6 +36,15 @@ final class MessengerConversation {
     var otherDisplayName: String?
     var otherAvatarUrl: String?
 
+    /// Local-only: pinned conversations float to the top of the list.
+    /// Not synced to the server in this iteration — purely UX affordance.
+    var isPinned: Bool = false
+
+    /// Local-only: archived (hidden) conversations.  Non-nil = hidden from
+    /// the main list; tapping a notification or restoring will set this back
+    /// to nil.
+    var archivedAt: Date?
+
     @Relationship(deleteRule: .cascade, inverse: \MessengerMessage.conversation)
     var messages: [MessengerMessage] = []
 

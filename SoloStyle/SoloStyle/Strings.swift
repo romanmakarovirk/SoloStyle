@@ -29,8 +29,29 @@ enum L {
     static var tabCalendar: String { isRu ? "Записи" : "Calendar" }
     static var tabClients: String { isRu ? "Клиенты" : "Clients" }
     static var tabAI: String { "AI" }
+    static var tabChats: String { isRu ? "Чаты" : "Chats" }
+
+    // MARK: - Chats
+    static var chatsEmptyTitle: String { isRu ? "Чатов пока нет" : "No chats yet" }
+    static var chatsEmptySubtitle: String { isRu ? "Начните диалог с клиентом или мастером — он появится здесь." : "Start a conversation with a master or client and it will appear here." }
+    static var newChat: String { isRu ? "Новый чат" : "New chat" }
+    static var searchChats: String { isRu ? "Поиск по чатам" : "Search chats" }
+    static var pinned: String { isRu ? "Закреплённые" : "Pinned" }
+    static var allChats: String { isRu ? "Все чаты" : "All chats" }
+    static var pin: String { isRu ? "Закрепить" : "Pin" }
+    static var unpin: String { isRu ? "Открепить" : "Unpin" }
+    static var archive: String { isRu ? "Архив" : "Archive" }
+    static var markRead: String { isRu ? "Прочитано" : "Mark as read" }
+    static var noMessagesYet: String { isRu ? "Пока нет сообщений" : "No messages yet" }
+    static var yesterday: String { isRu ? "Вчера" : "Yesterday" }
+    static var startNewChatTitle: String { isRu ? "Начать новый чат" : "Start a new chat" }
+    static var otherUserId: String { isRu ? "ID собеседника" : "Other user's ID" }
+    static var iActAs: String { isRu ? "Я выступаю как" : "I'm acting as" }
+    static var createChat: String { isRu ? "Создать чат" : "Create chat" }
+    static var enterIdPlease: String { isRu ? "Введите ID" : "Please enter the ID" }
+    static var cantCreateChatError: String { isRu ? "Не удалось создать чат — проверьте ID и подключение" : "Couldn't create the chat — check the ID and your connection" }
     static var tabProfile: String { isRu ? "Профиль" : "Profile" }
-    static var tabSettings: String { isRu ? "Ещё" : "Settings" }
+    static var tabSettings: String { isRu ? "Настройки" : "Settings" }
 
     // MARK: - Common
     static var save: String { isRu ? "Сохранить" : "Save" }
@@ -182,6 +203,7 @@ enum L {
     static var exportLabel: String { isRu ? "Экспорт" : "Export" }
     static var workSchedule: String { isRu ? "График работы" : "Work Schedule" }
     static var myServices: String { isRu ? "Мои услуги" : "My Services" }
+    static var myWork: String { isRu ? "Моя работа" : "My Work" }
     static var avgPerMonth: String { isRu ? "Ср. в месяц" : "Avg/month" }
     static var totalEarnings: String { isRu ? "Всего заработано" : "Total Earned" }
 

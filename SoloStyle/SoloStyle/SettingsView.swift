@@ -11,16 +11,28 @@ import StoreKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query private var masters: [Master]
+    @Query(filter: #Predicate<Service> { $0.isActive }) private var servicesActive: [Service]
+    private let statsCache = StatsCache.shared
+
     @ObservedObject private var lang = LanguageManager.shared
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = true
     @State private var showingLanguageSheet = false
     @State private var showingHelpCenter = false
     @State private var showingContactSheet = false
     @State private var showingPrivacyPolicy = false
+    @State private var showingEditProfile = false
+    @State private var showingAnalytics = false
+    @State private var showingExport = false
+    @State private var showingMyServices = false
+    @State private var showingWorkSchedule = false
+    @State private var showingShareSheet = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("calendarSyncEnabled") private var calendarSyncEnabled = false
     @State private var authManager = AuthManager.shared
     @State private var showingIdCopiedToast = false
+
+    private var master: Master? { masters.first }
 
     var body: some View {
         NavigationStack {
@@ -29,10 +41,65 @@ struct SettingsView: View {
 
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: Design.Spacing.l) {
-                        // Client profile header
-                        if authManager.selectedRole == .client {
+                        // Profile header — role-specific
+                        if authManager.selectedRole == .master {
+                            masterProfileHero
+                                .animateOnAppearSubtle(delay: 0.01)
+                        } else if authManager.selectedRole == .client {
                             clientProfileHeader
                                 .animateOnAppearSubtle(delay: 0.01)
+                        }
+
+                        // Master-only "Моя работа" section
+                        if authManager.selectedRole == .master {
+                            settingsSection(title: L.myWork) {
+                                settingsRow(
+                                    icon: "scissors",
+                                    iconColor: .purple,
+                                    title: L.myServices,
+                                    value: "\(servicesActive.count)"
+                                ) {
+                                    HapticManager.selection()
+                                    showingMyServices = true
+                                }
+
+                                Divider().padding(.leading, 52)
+
+                                settingsRow(
+                                    icon: "clock",
+                                    iconColor: .orange,
+                                    title: L.workSchedule,
+                                    value: nil
+                                ) {
+                                    HapticManager.selection()
+                                    showingWorkSchedule = true
+                                }
+
+                                Divider().padding(.leading, 52)
+
+                                settingsRow(
+                                    icon: "link",
+                                    iconColor: .green,
+                                    title: L.bookingLink,
+                                    value: nil
+                                ) {
+                                    HapticManager.impact(.medium)
+                                    showingShareSheet = true
+                                }
+
+                                Divider().padding(.leading, 52)
+
+                                settingsRow(
+                                    icon: "chart.pie.fill",
+                                    iconColor: .blue,
+                                    title: L.viewAnalytics,
+                                    value: nil
+                                ) {
+                                    HapticManager.selection()
+                                    showingAnalytics = true
+                                }
+                            }
+                            .animateOnAppearSubtle(delay: 0.02)
                         }
 
                         // Account section with role switching
@@ -243,6 +310,27 @@ struct SettingsView: View {
             .sheet(isPresented: $showingPrivacyPolicy) {
                 PrivacyPolicyView()
             }
+            .sheet(isPresented: $showingEditProfile) {
+                EditProfileView(master: master)
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                AnalyticsView()
+            }
+            .sheet(isPresented: $showingExport) {
+                ExportDataView()
+            }
+            .sheet(isPresented: $showingMyServices) {
+                MyServicesSheet()
+            }
+            .sheet(isPresented: $showingWorkSchedule) {
+                WorkScheduleSheet(master: master)
+            }
+            .sheet(isPresented: $showingShareSheet) {
+                if let master,
+                   let url = URL(string: "https://solostyle.app/book/\(master.publicSlug)") {
+                    ShareSheet(items: [url])
+                }
+            }
             .onChange(of: notificationsEnabled) { _, enabled in
                 Task {
                     if enabled {
@@ -359,6 +447,85 @@ struct SettingsView: View {
 
     private func roleHelperText(for role: UserRole) -> String {
         role == .master ? L.roleMasterDescription : L.roleClientDescription
+    }
+
+    // MARK: - Master Profile Hero (compact card at top of Settings for master role)
+
+    private var masterProfileHero: some View {
+        VStack(spacing: Design.Spacing.m) {
+            ProfileAvatar(
+                name: master?.name ?? "?",
+                imageData: master?.avatarData,
+                size: 88
+            )
+
+            VStack(spacing: Design.Spacing.xxs) {
+                Text(master?.name ?? L.yourName)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Design.Colors.textPrimary)
+
+                Text(master?.businessName ?? L.roleMaster)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Design.Colors.textSecondary)
+            }
+            .multilineTextAlignment(.center)
+
+            // Three-stat row
+            HStack(spacing: 0) {
+                heroStat(value: "\(statsCache.clientCount)", label: L.clients, color: .blue)
+                heroStatDivider
+                heroStat(value: "\(statsCache.appointmentCount)", label: L.appointments, color: .green)
+                heroStatDivider
+                heroStat(value: "\(servicesActive.count)", label: L.services, color: .purple)
+            }
+
+            // Edit button
+            Button {
+                HapticManager.selection()
+                showingEditProfile = true
+            } label: {
+                Label(L.editProfile, systemImage: "pencil")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Design.Colors.accentPrimary)
+                    .padding(.horizontal, Design.Spacing.m)
+                    .padding(.vertical, Design.Spacing.xs)
+                    .background(
+                        Capsule().fill(Design.Colors.accentPrimary.opacity(0.12))
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(Design.Spacing.l)
+        .soloGlass(tint: Color.white.opacity(0.10), shape: .roundedRect(28))
+        .overlay(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .strokeBorder(Design.Colors.textTertiary.opacity(0.08), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.06), radius: 24, x: 0, y: 8)
+        .padding(.horizontal, Design.Spacing.m)
+        .onAppear {
+            statsCache.refreshIfNeeded(context: modelContext)
+        }
+    }
+
+    private var heroStatDivider: some View {
+        Rectangle()
+            .fill(Design.Colors.textTertiary.opacity(0.18))
+            .frame(width: 0.5, height: 32)
+    }
+
+    private func heroStat(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(color)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.system(size: 11))
+                .foregroundStyle(Design.Colors.textTertiary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Client Profile Header
@@ -762,4 +929,43 @@ struct LanguageSelectionView: View {
 
 #Preview {
     SettingsView()
+}
+
+// MARK: - My Services Sheet
+// Wraps the existing ProfileView so the Services + Schedule + Booking-link
+// section of Profile is still reachable via Settings → Моя работа → Мои услуги.
+// Until we extract a dedicated services list, ProfileView is the canonical
+// destination — it already has add/edit flows.
+
+struct MyServicesSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ProfileView()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L.done) { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - Work Schedule Sheet (placeholder; reuses ProfileView for now)
+
+struct WorkScheduleSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let master: Master?
+
+    var body: some View {
+        NavigationStack {
+            ProfileView()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L.done) { dismiss() }
+                    }
+                }
+        }
+    }
 }

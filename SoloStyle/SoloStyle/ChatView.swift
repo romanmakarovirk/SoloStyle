@@ -110,39 +110,94 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - Quick replies (master only)
+
+    /// Hardcoded message templates for the master role.  Tapping a chip
+    /// inserts the text into the input field (or sends immediately if the
+    /// input is empty).
+    private static let masterQuickReplies: [String] = [
+        "Подтверждаю запись ✓",
+        "Опоздаю на 10 минут",
+        "Можно перенести?",
+        "Принесёте свои инструменты?",
+        "Спасибо за визит! ❤️"
+    ]
+
+    private var amMaster: Bool {
+        conversation.masterExternalId == myExternalId
+    }
+
+    private var quickRepliesBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Design.Spacing.xs) {
+                ForEach(Self.masterQuickReplies, id: \.self) { template in
+                    Button {
+                        HapticManager.impact(.light)
+                        if draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            // Send right away
+                            chatService.sendText(template, to: conversation)
+                        } else {
+                            // Append to draft so user can edit before sending
+                            draft = draft.isEmpty ? template : "\(draft) \(template)"
+                        }
+                    } label: {
+                        Text(template)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Design.Colors.accentPrimary)
+                            .padding(.horizontal, Design.Spacing.s)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule().fill(Design.Colors.accentPrimary.opacity(0.10))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, Design.Spacing.m)
+            .padding(.vertical, Design.Spacing.xs)
+        }
+        .background(.ultraThinMaterial)
+    }
+
     // MARK: - Composer
 
     private var composer: some View {
-        HStack(spacing: Design.Spacing.s) {
-            TextField("Сообщение", text: $draft, axis: .vertical)
-                .lineLimit(1...5)
-                .focused($isInputFocused)
-                .onChange(of: draft) { _, newValue in
-                    // Send typing indicator on first character only (debounce-ish)
-                    if !newValue.isEmpty && newValue.count == 1 {
-                        chatService.sendTyping(conversationId: conversation.id)
-                    }
-                }
-                .padding(.horizontal, Design.Spacing.s)
-                .padding(.vertical, Design.Spacing.xs)
-                .background(
-                    RoundedRectangle(cornerRadius: Design.Radius.l)
-                        .fill(Design.Colors.backgroundSecondary)
-                )
-
-            Button {
-                send()
-            } label: {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundStyle(canSend ? Design.Colors.accentPrimary : Design.Colors.textTertiary)
+        VStack(spacing: 0) {
+            if amMaster {
+                quickRepliesBar
             }
-            .disabled(!canSend)
-            .animation(Design.Animation.quick, value: canSend)
+
+            HStack(spacing: Design.Spacing.s) {
+                TextField("Сообщение", text: $draft, axis: .vertical)
+                    .lineLimit(1...5)
+                    .focused($isInputFocused)
+                    .onChange(of: draft) { _, newValue in
+                        // Send typing indicator on first character only (debounce-ish)
+                        if !newValue.isEmpty && newValue.count == 1 {
+                            chatService.sendTyping(conversationId: conversation.id)
+                        }
+                    }
+                    .padding(.horizontal, Design.Spacing.s)
+                    .padding(.vertical, Design.Spacing.xs)
+                    .background(
+                        RoundedRectangle(cornerRadius: Design.Radius.l)
+                            .fill(Design.Colors.backgroundSecondary)
+                    )
+
+                Button {
+                    send()
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundStyle(canSend ? Design.Colors.accentPrimary : Design.Colors.textTertiary)
+                }
+                .disabled(!canSend)
+                .animation(Design.Animation.quick, value: canSend)
+            }
+            .padding(.horizontal, Design.Spacing.m)
+            .padding(.vertical, Design.Spacing.s)
+            .background(.ultraThinMaterial)
         }
-        .padding(.horizontal, Design.Spacing.m)
-        .padding(.vertical, Design.Spacing.s)
-        .background(.ultraThinMaterial)
     }
 
     private var canSend: Bool {

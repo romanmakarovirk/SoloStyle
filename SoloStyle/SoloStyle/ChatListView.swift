@@ -5,90 +5,213 @@
 //  Conversations list — entry point to the messenger.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ChatListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
 
     @Query(sort: [SortDescriptor(\MessengerConversation.lastMessageAt, order: .reverse)])
-    private var conversations: [MessengerConversation]
+    private var allConversations: [MessengerConversation]
 
     @State private var chatService = ChatService.shared
     @State private var showingStartSheet = false
-    @State private var isRefreshing = false
+    @State private var searchText: String = ""
 
     private var myExternalId: String {
         AuthManager.shared.currentUserExternalId ?? ""
     }
 
+    /// Active (non-archived) conversations matching the search filter.
+    private var visibleConversations: [MessengerConversation] {
+        let active = allConversations.filter { $0.archivedAt == nil }
+        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return active }
+        return active.filter { conv in
+            let name = (conv.otherDisplayName ?? conv.otherExternalId(of: myExternalId)).lowercased()
+            let preview = (conv.lastMessagePreview ?? "").lowercased()
+            return name.contains(q) || preview.contains(q)
+        }
+    }
+
+    private var pinnedConversations: [MessengerConversation] {
+        visibleConversations.filter { $0.isPinned }
+    }
+
+    private var regularConversations: [MessengerConversation] {
+        visibleConversations.filter { !$0.isPinned }
+    }
+
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .bottomTrailing) {
                 Design.Colors.backgroundPrimary.ignoresSafeArea()
 
-                if conversations.isEmpty {
+                if allConversations.filter({ $0.archivedAt == nil }).isEmpty {
                     EmptyStateView(
                         icon: "bubble.left.and.bubble.right",
-                        title: "Чатов пока нет",
-                        subtitle: "Начните диалог с клиентом или мастером, чтобы они появились здесь.",
-                        actionTitle: "Новый чат",
+                        title: L.chatsEmptyTitle,
+                        subtitle: L.chatsEmptySubtitle,
+                        actionTitle: L.newChat,
                         action: { showingStartSheet = true }
                     )
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: Design.Spacing.xs) {
-                            ForEach(conversations) { conv in
-                                NavigationLink {
-                                    ChatView(conversation: conv)
-                                } label: {
-                                    ConversationRow(conversation: conv, myExternalId: myExternalId)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(Design.Spacing.m)
-                    }
-                    .refreshable {
-                        await refresh()
-                    }
+                    listContent
+                }
+
+                // FAB compose button
+                if !allConversations.isEmpty {
+                    composeFAB
+                        .padding(.trailing, Design.Spacing.l)
+                        .padding(.bottom, 100)  // above tab bar
                 }
             }
-            .navigationTitle("Сообщения")
+            .navigationTitle(L.tabChats)
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundStyle(Design.Colors.textTertiary)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        HapticManager.impact(.light)
-                        showingStartSheet = true
-                    } label: {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Design.Colors.accentPrimary)
-                    }
-                }
-            }
+            .searchable(
+                text: $searchText,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: L.searchChats
+            )
             .sheet(isPresented: $showingStartSheet) {
                 StartConversationSheet()
             }
             .task {
-                await refresh()
+                await ChatService.shared.bootstrap(context: modelContext)
+            }
+            .refreshable {
+                await chatService.syncConversations()
             }
         }
     }
 
-    private func refresh() async {
-        await chatService.syncConversations()
+    // MARK: - List
+
+    @ViewBuilder
+    private var listContent: some View {
+        ScrollView {
+            LazyVStack(spacing: Design.Spacing.xs) {
+                if !pinnedConversations.isEmpty {
+                    sectionHeader(L.pinned, icon: "pin.fill")
+                    ForEach(pinnedConversations) { conv in
+                        conversationLink(conv)
+                    }
+                    if !regularConversations.isEmpty {
+                        sectionHeader(L.allChats, icon: "bubble.left.and.bubble.right")
+                            .padding(.top, Design.Spacing.s)
+                    }
+                }
+                ForEach(regularConversations) { conv in
+                    conversationLink(conv)
+                }
+            }
+            .padding(.horizontal, Design.Spacing.m)
+            .padding(.top, Design.Spacing.s)
+            .padding(.bottom, 120)
+        }
+    }
+
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        HStack(spacing: Design.Spacing.xs) {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .semibold))
+            Text(title.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.5)
+        }
+        .foregroundStyle(Design.Colors.textTertiary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.xs)
+        .padding(.top, Design.Spacing.s)
+    }
+
+    private func conversationLink(_ conv: MessengerConversation) -> some View {
+        NavigationLink {
+            ChatView(conversation: conv)
+        } label: {
+            ConversationRow(conversation: conv, myExternalId: myExternalId)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            // Pin / Unpin
+            Button {
+                togglePin(conv)
+            } label: {
+                Label(conv.isPinned ? L.unpin : L.pin,
+                      systemImage: conv.isPinned ? "pin.slash.fill" : "pin.fill")
+            }
+            .tint(.orange)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            // Archive
+            Button {
+                archive(conv)
+            } label: {
+                Label(L.archive, systemImage: "archivebox.fill")
+            }
+            .tint(.gray)
+
+            // Mark read
+            if conv.unreadCount(of: myExternalId) > 0 {
+                Button {
+                    markRead(conv)
+                } label: {
+                    Label(L.markRead, systemImage: "envelope.open.fill")
+                }
+                .tint(.blue)
+            }
+        }
+    }
+
+    // MARK: - FAB
+
+    private var composeFAB: some View {
+        Button {
+            HapticManager.impact(.medium)
+            showingStartSheet = true
+        } label: {
+            Image(systemName: "square.and.pencil")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(
+                    Circle()
+                        .fill(Design.Colors.accentPrimary)
+                        .shadow(color: Design.Colors.accentPrimary.opacity(0.4), radius: 14, y: 6)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Mutations
+
+    private func togglePin(_ conv: MessengerConversation) {
+        HapticManager.impact(.light)
+        withAnimation(Design.Animation.smooth) {
+            conv.isPinned.toggle()
+        }
+        try? modelContext.save()
+    }
+
+    private func archive(_ conv: MessengerConversation) {
+        HapticManager.notification(.warning)
+        withAnimation(Design.Animation.smooth) {
+            conv.archivedAt = Date()
+        }
+        try? modelContext.save()
+    }
+
+    private func markRead(_ conv: MessengerConversation) {
+        HapticManager.impact(.light)
+        let role = conv.masterExternalId == myExternalId ? "master" : "client"
+        // Zero local unread, tell server we've read everything up to the latest seq.
+        if role == "master" {
+            conv.unreadMaster = 0
+        } else {
+            conv.unreadClient = 0
+        }
+        try? modelContext.save()
+        chatService.sendRead(conversationId: conv.id, upToSeq: conv.lastSeenSeq)
     }
 }
 
@@ -105,12 +228,15 @@ private struct ConversationRow: View {
 
     var body: some View {
         HStack(spacing: Design.Spacing.s) {
-            // Avatar
-            ProfileAvatar(name: displayName, size: 48)
+            ProfileAvatar(name: displayName, imageData: nil, size: 48)
 
-            // Body
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
+                HStack(spacing: Design.Spacing.xxs) {
+                    if conversation.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.orange)
+                    }
                     Text(displayName)
                         .font(Design.Typography.headline)
                         .foregroundStyle(Design.Colors.textPrimary)
@@ -126,7 +252,7 @@ private struct ConversationRow: View {
                 }
 
                 HStack {
-                    Text(conversation.lastMessagePreview ?? "Пока нет сообщений")
+                    Text(conversation.lastMessagePreview ?? L.noMessagesYet)
                         .font(Design.Typography.subheadline)
                         .foregroundStyle(unread > 0 ? Design.Colors.textPrimary : Design.Colors.textSecondary)
                         .lineLimit(1)
@@ -156,7 +282,7 @@ private struct ConversationRow: View {
             return date.formatted(date: .omitted, time: .shortened)
         }
         if cal.isDateInYesterday(date) {
-            return "Вчера"
+            return L.yesterday
         }
         if let days = cal.dateComponents([.day], from: date, to: Date()).day, days < 7 {
             let formatter = DateFormatter()
@@ -180,25 +306,25 @@ private struct StartConversationSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: Design.Spacing.l) {
-                Text("Начать новый чат")
+                Text(L.startNewChatTitle)
                     .font(Design.Typography.title3)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, Design.Spacing.s)
 
                 FormField(
-                    title: "ID собеседника",
-                    placeholder: "telegram_id или apple_user_id",
+                    title: L.otherUserId,
+                    placeholder: "telegram_id / apple_user_id",
                     text: $otherId,
                     icon: "person.text.rectangle"
                 )
 
                 VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-                    Text("Я выступаю как")
+                    Text(L.iActAs)
                         .font(Design.Typography.caption1)
                         .foregroundStyle(Design.Colors.textSecondary)
                     HStack(spacing: Design.Spacing.s) {
-                        roleChip("Мастер", value: "master")
-                        roleChip("Клиент", value: "client")
+                        roleChip(L.roleMaster, value: "master")
+                        roleChip(L.roleClient, value: "client")
                     }
                 }
 
@@ -211,7 +337,7 @@ private struct StartConversationSheet: View {
                 Spacer()
 
                 GlassButton(
-                    title: "Создать чат",
+                    title: L.createChat,
                     icon: "plus.message",
                     style: .prominent,
                     isFullWidth: true,
@@ -221,11 +347,11 @@ private struct StartConversationSheet: View {
                 }
             }
             .padding(Design.Spacing.l)
-            .navigationTitle("Новый чат")
+            .navigationTitle(L.newChat)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Отмена") { dismiss() }
+                    Button(L.cancel) { dismiss() }
                 }
             }
         }
@@ -252,7 +378,7 @@ private struct StartConversationSheet: View {
     private func create() async {
         let trimmed = otherId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            error = "Введите ID"
+            error = L.enterIdPlease
             return
         }
         isSubmitting = true
@@ -262,7 +388,7 @@ private struct StartConversationSheet: View {
         if conv != nil {
             dismiss()
         } else {
-            error = "Не удалось создать чат — проверьте ID и подключение"
+            error = L.cantCreateChatError
         }
     }
 }

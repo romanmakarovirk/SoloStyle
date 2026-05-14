@@ -5,6 +5,7 @@
 //  Main navigation with Liquid Glass tab bar
 //
 
+import SwiftData
 import SwiftUI
 
 struct MainTabView: View {
@@ -15,11 +16,21 @@ struct MainTabView: View {
     @State private var showingNewClient = false
     @State private var showingAnalytics = false
 
+    // Drives the chat-tab unread badge.
+    @Query private var conversations: [MessengerConversation]
+
     init(quickActionDestination: Binding<QuickActionDestination?> = .constant(nil)) {
         self._quickActionDestination = quickActionDestination
     }
 
     @State private var tabBarHeight: CGFloat = 0
+
+    private var totalChatUnread: Int {
+        guard let me = AuthManager.shared.currentUserExternalId else { return 0 }
+        return conversations
+            .filter { $0.archivedAt == nil }
+            .reduce(0) { $0 + $1.unreadCount(of: me) }
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -33,13 +44,13 @@ struct MainTabView: View {
                     .opacity(selectedTab == .clients ? 1 : 0)
                     .allowsHitTesting(selectedTab == .clients)
 
+                ChatListView()
+                    .opacity(selectedTab == .chats ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .chats)
+
                 AIAssistantView(tabBarHeight: tabBarHeight)
                     .opacity(selectedTab == .ai ? 1 : 0)
                     .allowsHitTesting(selectedTab == .ai)
-
-                ProfileView()
-                    .opacity(selectedTab == .profile ? 1 : 0)
-                    .allowsHitTesting(selectedTab == .profile)
 
                 SettingsView()
                     .opacity(selectedTab == .settings ? 1 : 0)
@@ -48,12 +59,15 @@ struct MainTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // Floating Tab Bar
-            GlassTabBar(selectedTab: $selectedTab)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(key: TabBarHeightKey.self, value: geo.size.height)
-                    }
-                )
+            GlassTabBar(
+                selectedTab: $selectedTab,
+                badges: [.chats: totalChatUnread]
+            )
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(key: TabBarHeightKey.self, value: geo.size.height)
+                }
+            )
         }
         .onPreferenceChange(TabBarHeightKey.self) { tabBarHeight = $0 }
         .background(Design.Colors.backgroundPrimary)

@@ -14,6 +14,7 @@ import Combine
 
 enum ClientTab: String, CaseIterable, Identifiable {
     case search
+    case chats
     case bookings
     case settings
 
@@ -22,6 +23,7 @@ enum ClientTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .search: L.tabSearch
+        case .chats: L.tabChats
         case .bookings: L.tabMyBookings
         case .settings: L.tabSettings
         }
@@ -30,6 +32,7 @@ enum ClientTab: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .search: "sparkles"
+        case .chats: "message"
         case .bookings: "calendar.badge.clock"
         case .settings: "gearshape"
         }
@@ -38,6 +41,7 @@ enum ClientTab: String, CaseIterable, Identifiable {
     var selectedIcon: String {
         switch self {
         case .search: "sparkles"
+        case .chats: "message.fill"
         case .bookings: "calendar.badge.clock"
         case .settings: "gearshape.fill"
         }
@@ -52,12 +56,25 @@ struct ClientMainView: View {
     @State private var selectedTab: ClientTab = .search
     @State private var tabBarHeight: CGFloat = 0
 
+    @Query private var conversations: [MessengerConversation]
+
+    private var totalChatUnread: Int {
+        guard let me = AuthManager.shared.currentUserExternalId else { return 0 }
+        return conversations
+            .filter { $0.archivedAt == nil }
+            .reduce(0) { $0 + $1.unreadCount(of: me) }
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ZStack {
                 ClientSearchTab(tabBarHeight: tabBarHeight)
                     .opacity(selectedTab == .search ? 1 : 0)
                     .allowsHitTesting(selectedTab == .search)
+
+                ChatListView()
+                    .opacity(selectedTab == .chats ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .chats)
 
                 ClientBookingsTab()
                     .opacity(selectedTab == .bookings ? 1 : 0)
@@ -69,16 +86,19 @@ struct ClientMainView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            ClientGlassTabBar(selectedTab: $selectedTab)
-                .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
-                .padding(.horizontal, Design.Spacing.s)
-                .padding(.bottom, 8)
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(key: ClientTabBarHeightKey.self, value: geo.size.height)
-                    }
-                )
-                .onPreferenceChange(ClientTabBarHeightKey.self) { tabBarHeight = $0 }
+            ClientGlassTabBar(
+                selectedTab: $selectedTab,
+                chatBadge: totalChatUnread
+            )
+            .shadow(color: .black.opacity(0.15), radius: 20, y: 10)
+            .padding(.horizontal, Design.Spacing.s)
+            .padding(.bottom, 8)
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(key: ClientTabBarHeightKey.self, value: geo.size.height)
+                }
+            )
+            .onPreferenceChange(ClientTabBarHeightKey.self) { tabBarHeight = $0 }
         }
         .background(Design.Colors.backgroundPrimary)
         .ignoresSafeArea(.keyboard)
@@ -96,6 +116,7 @@ private struct ClientTabBarHeightKey: PreferenceKey {
 
 private struct ClientGlassTabBar: View {
     @Binding var selectedTab: ClientTab
+    var chatBadge: Int = 0
     @Namespace private var namespace
 
     var body: some View {
@@ -114,7 +135,12 @@ private struct ClientGlassTabBar: View {
     private var tabBarContent: some View {
         HStack(spacing: 0) {
             ForEach(ClientTab.allCases) { tab in
-                ClientTabBarItem(tab: tab, isSelected: selectedTab == tab, namespace: namespace) {
+                ClientTabBarItem(
+                    tab: tab,
+                    isSelected: selectedTab == tab,
+                    badge: tab == .chats ? chatBadge : 0,
+                    namespace: namespace
+                ) {
                     HapticManager.selection()
                     withAnimation(.easeOut(duration: 0.15)) {
                         selectedTab = tab
@@ -130,6 +156,7 @@ private struct ClientGlassTabBar: View {
 private struct ClientTabBarItem: View {
     let tab: ClientTab
     let isSelected: Bool
+    var badge: Int = 0
     let namespace: Namespace.ID
     let action: () -> Void
 
@@ -137,20 +164,38 @@ private struct ClientTabBarItem: View {
         LinearGradient(colors: [.purple, .pink, .orange], startPoint: .topLeading, endPoint: .bottomTrailing)
     }
 
+    @ViewBuilder
+    private var badgeOverlay: some View {
+        if badge > 0 {
+            Text(badge > 99 ? "99+" : "\(badge)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1.5)
+                .background(Color.red, in: Capsule())
+                .overlay(Capsule().stroke(Color(.systemBackground), lineWidth: 1.5))
+                .offset(x: 12, y: -8)
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
+
     var body: some View {
         Button(action: action) {
             VStack(spacing: 3) {
-                if tab.isAI {
-                    Image(systemName: tab.icon)
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(isSelected ? aiGradient : LinearGradient(colors: [Design.Colors.textTertiary], startPoint: .top, endPoint: .bottom))
-                        .symbolEffect(.bounce, options: .nonRepeating, value: isSelected)
-                } else {
-                    Image(systemName: isSelected ? tab.selectedIcon : tab.icon)
-                        .font(.system(size: 22))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(isSelected ? Design.Colors.accentPrimary : Design.Colors.textTertiary)
+                Group {
+                    if tab.isAI {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(isSelected ? aiGradient : LinearGradient(colors: [Design.Colors.textTertiary], startPoint: .top, endPoint: .bottom))
+                            .symbolEffect(.bounce, options: .nonRepeating, value: isSelected)
+                    } else {
+                        Image(systemName: isSelected ? tab.selectedIcon : tab.icon)
+                            .font(.system(size: 22))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(isSelected ? Design.Colors.accentPrimary : Design.Colors.textTertiary)
+                    }
                 }
+                .overlay(alignment: .topTrailing) { badgeOverlay }
 
                 Text(tab.title)
                     .font(.system(size: 10, weight: isSelected ? .semibold : .medium))
@@ -464,7 +509,6 @@ private struct ClientBookingsTab: View {
 
     @State private var selectedDate = Date()
     @State private var isAnimatingDate = false
-    @State private var showingChats = false
 
     private var todayAppointments: [Appointment] {
         appointments.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
@@ -511,11 +555,6 @@ private struct ClientBookingsTab: View {
                 }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $showingChats) {
-                ChatListView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
             .task {
                 await ChatService.shared.bootstrap(context: modelContext)
             }
@@ -541,22 +580,6 @@ private struct ClientBookingsTab: View {
                     .foregroundStyle(Design.Colors.textSecondary)
 
                 Spacer()
-
-                // Chats button — opens conversations list
-                Button {
-                    HapticManager.impact(.light)
-                    showingChats = true
-                } label: {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Design.Colors.accentPrimary)
-                        .frame(width: 38, height: 38)
-                        .background(
-                            Circle()
-                                .fill(Design.Colors.accentPrimary.opacity(0.12))
-                        )
-                }
-                .padding(.trailing, Design.Spacing.xs)
 
                 // Today button
                 if !Calendar.current.isDateInToday(selectedDate) {

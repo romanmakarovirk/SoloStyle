@@ -226,7 +226,7 @@ struct GlassIconButton: View {
 // MARK: - Tab Bar
 
 enum Tab: String, CaseIterable, Identifiable {
-    case calendar, clients, ai, profile, settings
+    case calendar, clients, chats, ai, settings
 
     var id: String { rawValue }
 
@@ -234,8 +234,8 @@ enum Tab: String, CaseIterable, Identifiable {
         switch self {
         case .calendar: L.tabCalendar
         case .clients: L.tabClients
+        case .chats: L.tabChats
         case .ai: L.tabAI
-        case .profile: L.tabProfile
         case .settings: L.tabSettings
         }
     }
@@ -244,8 +244,8 @@ enum Tab: String, CaseIterable, Identifiable {
         switch self {
         case .calendar: "calendar.badge.clock"
         case .clients: "person.2"
+        case .chats: "message"
         case .ai: "sparkles"
-        case .profile: "person.circle"
         case .settings: "gearshape"
         }
     }
@@ -254,8 +254,8 @@ enum Tab: String, CaseIterable, Identifiable {
         switch self {
         case .calendar: "calendar.badge.clock"
         case .clients: "person.2.fill"
+        case .chats: "message.fill"
         case .ai: "sparkles"
-        case .profile: "person.circle.fill"
         case .settings: "gearshape.fill"
         }
     }
@@ -267,6 +267,9 @@ enum Tab: String, CaseIterable, Identifiable {
 
 struct GlassTabBar: View {
     @Binding var selectedTab: Tab
+    /// Per-tab numeric badge (unread counters, etc.).  Nil/zero hides the bubble.
+    var badges: [Tab: Int] = [:]
+
     @Namespace private var namespace
 
     var body: some View {
@@ -278,6 +281,7 @@ struct GlassTabBar: View {
                             TabBarItem(
                                 tab: tab,
                                 isSelected: selectedTab == tab,
+                                badge: badges[tab] ?? 0,
                                 namespace: namespace
                             ) {
                                 HapticManager.selection()
@@ -296,6 +300,7 @@ struct GlassTabBar: View {
                         TabBarItem(
                             tab: tab,
                             isSelected: selectedTab == tab,
+                            badge: badges[tab] ?? 0,
                             namespace: namespace
                         ) {
                             HapticManager.selection()
@@ -319,6 +324,7 @@ struct GlassTabBar: View {
 struct TabBarItem: View {
     let tab: Tab
     let isSelected: Bool
+    var badge: Int = 0
     let namespace: Namespace.ID
     let action: () -> Void
 
@@ -328,6 +334,21 @@ struct TabBarItem: View {
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
+    }
+
+    @ViewBuilder
+    private var badgeOverlay: some View {
+        if badge > 0 {
+            Text(badge > 99 ? "99+" : "\(badge)")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1.5)
+                .background(Color.red, in: Capsule())
+                .overlay(Capsule().stroke(Color(.systemBackground), lineWidth: 1.5))
+                .offset(x: 14, y: -10)
+                .transition(.scale.combined(with: .opacity))
+        }
     }
 
     var body: some View {
@@ -353,6 +374,7 @@ struct TabBarItem: View {
                                     .matchedGeometryEffect(id: "tabBackground", in: namespace)
                             }
                         }
+                        .overlay(alignment: .topTrailing) { badgeOverlay }
                 } else {
                     Image(systemName: isSelected ? tab.selectedIcon : tab.icon)
                         .font(.system(size: 24, weight: isSelected ? .semibold : .regular))
@@ -365,6 +387,7 @@ struct TabBarItem: View {
                                     .matchedGeometryEffect(id: "tabBackground", in: namespace)
                             }
                         }
+                        .overlay(alignment: .topTrailing) { badgeOverlay }
                 }
 
                 Text(tab.title)

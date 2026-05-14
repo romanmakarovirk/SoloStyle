@@ -18,7 +18,6 @@ struct CalendarView: View {
     @State private var showingDeleteConfirmation = false
     @State private var appointmentToDelete: Appointment?
     @State private var showingVoiceCRM = false
-    @State private var showingChats = false
 
     private var todayAppointments: [Appointment] {
         appointments.filter { Calendar.current.isDate($0.date, inSameDayAs: selectedDate) }
@@ -123,11 +122,6 @@ struct CalendarView: View {
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showingChats) {
-                ChatListView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
-            }
             .task {
                 await ChatService.shared.bootstrap(context: modelContext)
             }
@@ -166,22 +160,6 @@ struct CalendarView: View {
                     .foregroundStyle(Design.Colors.textSecondary)
 
                 Spacer()
-
-                // Chats button — opens conversations list
-                Button {
-                    HapticManager.impact(.light)
-                    showingChats = true
-                } label: {
-                    Image(systemName: "bubble.left.and.bubble.right.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(Design.Colors.accentPrimary)
-                        .frame(width: 38, height: 38)
-                        .background(
-                            Circle()
-                                .fill(Design.Colors.accentPrimary.opacity(0.12))
-                        )
-                }
-                .padding(.trailing, Design.Spacing.xs)
 
                 // Today button
                 if !Calendar.current.isDateInToday(selectedDate) {
