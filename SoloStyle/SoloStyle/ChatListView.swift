@@ -53,6 +53,9 @@ struct ChatListView: View {
 
                 if activeConversations.isEmpty {
                     // Vertically + horizontally centred empty state.
+                    // Negative offset mirrors ClientsView so the icon sits
+                    // around the optical centre rather than getting pushed
+                    // down by the search bar header.
                     EmptyStateView(
                         icon: "bubble.left.and.bubble.right",
                         title: L.chatsEmptyTitle,
@@ -61,6 +64,7 @@ struct ChatListView: View {
                         action: { showingStartSheet = true }
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .offset(y: -60)
                 } else {
                     listContent
                 }
