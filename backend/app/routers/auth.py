@@ -111,8 +111,14 @@ def _decode_jwt(token: str) -> dict:
 
 
 def _verify_webhook_secret(x_webhook_secret: str = Header(...)) -> None:
-    """Verify internal webhook calls come from our own bot."""
-    if x_webhook_secret != settings.jwt_secret:
+    """Verify internal webhook calls come from our own bot.
+
+    Uses a constant-time comparison (hmac.compare_digest) to avoid leaking
+    the secret through response-timing differences, and a dedicated webhook
+    secret so this path never exposes the JWT signing key.
+    """
+    import hmac
+    if not hmac.compare_digest(x_webhook_secret, settings.effective_webhook_secret):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 

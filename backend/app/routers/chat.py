@@ -53,6 +53,9 @@ from app.routers.auth import _get_current_user_id, JWT_ALGORITHM
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat")
 
+# Hard cap on a single text message — prevents DB bloat and oversized fan-out.
+MAX_MESSAGE_LENGTH = 4000
+
 
 # ── Pydantic schemas ────────────────────────────────────────────────
 
@@ -471,11 +474,31 @@ async def _handle_send(
     if not conv_id:
         await _safe_send(ws, {"type": "error", "code": "missing_conv_id", "message": "conversation_id required"})
         return
+    # Validate conv_id is a real UUID before it touches the DB layer.
+    try:
+        UUID(str(conv_id))
+    except (ValueError, TypeError):
+        await _safe_send(ws, {"type": "error", "code": "bad_conv_id", "message": "conversation_id must be a UUID"})
+        return
+    if client_msg_id is not None:
+        try:
+            UUID(str(client_msg_id))
+        except (ValueError, TypeError):
+            await _safe_send(ws, {"type": "error", "code": "bad_client_msg_id", "message": "client_message_id must be a UUID"})
+            return
     if content_type not in ("text", "photo", "voice"):
         await _safe_send(ws, {"type": "error", "code": "bad_content_type", "message": f"unsupported content_type: {content_type}"})
         return
     if content_type == "text" and not (body or "").strip():
         await _safe_send(ws, {"type": "error", "code": "empty_body", "message": "text message body required"})
+        return
+    # Cap body size: a multi-megabyte string would bloat the DB and the
+    # fan-out payload (DoS). 4000 chars is well beyond any real message.
+    if body is not None and len(body) > MAX_MESSAGE_LENGTH:
+        await _safe_send(ws, {"type": "error", "code": "body_too_long", "message": f"message exceeds {MAX_MESSAGE_LENGTH} characters"})
+        return
+    if attachment_url is not None and len(str(attachment_url)) > 2048:
+        await _safe_send(ws, {"type": "error", "code": "attachment_url_too_long", "message": "attachment_url too long"})
         return
 
     # Look up conversation, verify membership, determine sender role

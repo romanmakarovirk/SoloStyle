@@ -122,7 +122,7 @@ async def _run_telegram_bot():
                 resp = await client.post(
                     f"{api_base}/auth/telegram-webhook",
                     json=payload,
-                    headers={"X-Webhook-Secret": settings.jwt_secret},
+                    headers={"X-Webhook-Secret": settings.effective_webhook_secret},
                 )
 
             if resp.status_code == 200:
