@@ -363,15 +363,17 @@ final class ChatService {
     private func startReceiveLoop() {
         receiveLoop?.cancel()
         receiveLoop = Task { [weak self] in
+            // This Task inherits @MainActor isolation, so reads of the
+            // service's own members are synchronous (no `await` needed).
             while !Task.isCancelled {
-                guard let task = await self?.wsTask else { break }
+                guard let task = self?.wsTask else { break }
                 do {
                     let msg = try await task.receive()
                     await self?.handleIncoming(msg)
                 } catch {
                     if Task.isCancelled { break }
                     print("[CHAT-WS] receive error: \(error)")
-                    await self?.handleSocketFailure()
+                    self?.handleSocketFailure()
                     break
                 }
             }
@@ -404,12 +406,13 @@ final class ChatService {
     private func scheduleReconnect() {
         reconnectTask?.cancel()
         reconnectTask = Task { [weak self] in
+            // Task inherits @MainActor — member reads are synchronous.
             // exponential backoff capped at 30s: 1, 2, 4, 8, 16, 30, 30...
-            let attempt = await self?.consecutiveFailures ?? 1
+            let attempt = self?.consecutiveFailures ?? 1
             let secs = min(30, Int(pow(2.0, Double(min(attempt, 5)))))
             try? await Task.sleep(nanoseconds: UInt64(secs) * 1_000_000_000)
             if Task.isCancelled { return }
-            await self?.connect()
+            self?.connect()
         }
     }
 
