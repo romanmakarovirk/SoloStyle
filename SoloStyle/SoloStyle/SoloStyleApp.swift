@@ -70,6 +70,7 @@ struct SoloStyleApp: App {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var quickActionDestination: QuickActionDestination?
     @State private var authManager = AuthManager.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -95,6 +96,21 @@ struct SoloStyleApp: App {
             .onOpenURL { url in
                 Task {
                     await authManager.handleAuthCallback(url: url)
+                }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                // Tear down the chat WebSocket (and its 30 s heartbeat) when
+                // the app leaves the foreground — keeping the socket alive in
+                // the background burns battery and iOS will kill it anyway.
+                // On return, reconnect; ChatService.connect() is idempotent
+                // and flushes any messages queued while offline.
+                switch newPhase {
+                case .background:
+                    ChatService.shared.disconnect()
+                case .active:
+                    ChatService.shared.connect()
+                default:
+                    break
                 }
             }
         }

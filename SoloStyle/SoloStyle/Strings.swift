@@ -50,6 +50,18 @@ enum L {
     static var createChat: String { isRu ? "Создать чат" : "Create chat" }
     static var enterIdPlease: String { isRu ? "Введите ID" : "Please enter the ID" }
     static var cantCreateChatError: String { isRu ? "Не удалось создать чат — проверьте ID и подключение" : "Couldn't create the chat — check the ID and your connection" }
+    static var writeMessage: String { isRu ? "Написать" : "Message" }
+    static var archivedChats: String { isRu ? "Архив" : "Archive" }
+    static var unarchive: String { isRu ? "Вернуть" : "Unarchive" }
+    static var archiveEmptyTitle: String { isRu ? "Архив пуст" : "Archive is empty" }
+    static var archiveEmptySubtitle: String { isRu ? "Скрытые чаты будут появляться здесь" : "Archived chats will appear here" }
+    static var chatFallbackTitle: String { isRu ? "Чат" : "Chat" }
+    static var messagePlaceholder: String { isRu ? "Сообщение" : "Message" }
+    static var myIdForChat: String { isRu ? "Мой ID для чата" : "My chat ID" }
+    static var idCopied: String { isRu ? "ID скопирован" : "ID copied" }
+    static var deleteAppointmentQ: String { isRu ? "Удалить запись?" : "Delete appointment?" }
+    static var noAppointments: String { isRu ? "Нет записей" : "No appointments" }
+    static var dayIsFree: String { isRu ? "Этот день свободен" : "This day is free" }
     static var tabProfile: String { isRu ? "Профиль" : "Profile" }
     static var tabSettings: String { isRu ? "Настройки" : "Settings" }
 

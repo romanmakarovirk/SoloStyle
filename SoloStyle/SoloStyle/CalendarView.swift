@@ -125,9 +125,9 @@ struct CalendarView: View {
             .task {
                 await ChatService.shared.bootstrap(context: modelContext)
             }
-            .alert("Удалить запись?", isPresented: $showingDeleteConfirmation) {
-                Button("Отмена", role: .cancel) { appointmentToDelete = nil }
-                Button("Удалить", role: .destructive) {
+            .alert(L.deleteAppointmentQ, isPresented: $showingDeleteConfirmation) {
+                Button(L.cancel, role: .cancel) { appointmentToDelete = nil }
+                Button(L.delete, role: .destructive) {
                     if let appointment = appointmentToDelete {
                         NotificationManager.shared.cancelReminder(for: appointment)
                         modelContext.delete(appointment)
@@ -136,7 +136,7 @@ struct CalendarView: View {
                     appointmentToDelete = nil
                 }
             } message: {
-                Text("Это действие нельзя отменить.")
+                Text(L.actionCannotBeUndone)
             }
         }
     }
@@ -169,7 +169,7 @@ struct CalendarView: View {
                             selectedDate = Date()
                         }
                     } label: {
-                        Text("Сегодня")
+                        Text(L.today)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(Design.Colors.accentPrimary)
                             .padding(.horizontal, Design.Spacing.s)
@@ -263,11 +263,11 @@ struct CalendarView: View {
                 .foregroundStyle(Design.Colors.textTertiary.opacity(0.5))
 
             VStack(spacing: Design.Spacing.xxs) {
-                Text("Нет записей")
+                Text(L.noAppointments)
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Design.Colors.textSecondary)
 
-                Text("Этот день свободен")
+                Text(L.dayIsFree)
                     .font(.system(size: 14))
                     .foregroundStyle(Design.Colors.textTertiary)
             }

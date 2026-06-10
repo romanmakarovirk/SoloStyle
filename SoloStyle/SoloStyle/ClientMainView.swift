@@ -279,7 +279,9 @@ private struct ClientSearchTab: View {
                     .foregroundStyle(Design.Colors.accentPrimary)
                     .frame(width: 64, height: 64)
                     .soloGlass(tint: Color.blue.opacity(0.2), shape: .circle)
-                    .symbolEffect(.breathe.pulse.byLayer, options: .repeating)
+                    // Finite repeat — tab stays mounted when hidden, so a
+                    // .repeating effect would render forever (battery drain).
+                    .symbolEffect(.breathe.pulse.byLayer, options: .repeat(3))
                     .animateOnAppear()
 
                 Text(L.findMaster)
@@ -546,7 +548,9 @@ private struct ClientBookingsTab: View {
                                     .animateOnAppear(delay: 0.15)
                             } else {
                                 ForEach(Array(todayAppointments.enumerated()), id: \.element.id) { index, appointment in
-                                    AppointmentRow(appointment: appointment, onDelete: {})
+                                    // nil = no delete affordance; previously an
+                                // empty closure rendered a dead delete button.
+                                AppointmentRow(appointment: appointment, onDelete: nil)
                                         .animateOnAppear(delay: 0.05 * Double(index))
                                 }
                             }

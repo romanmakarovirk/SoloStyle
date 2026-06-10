@@ -112,7 +112,7 @@ struct SettingsView: View {
                                 settingsRow(
                                     icon: "doc.on.doc",
                                     iconColor: .indigo,
-                                    title: "Мой ID для чата",
+                                    title: L.myIdForChat,
                                     value: String(myId.prefix(8)) + (myId.count > 8 ? "…" : "")
                                 ) {
                                     UIPasteboard.general.string = myId
@@ -166,6 +166,7 @@ struct SettingsView: View {
                                 value: nil
                             ) {
                                 HapticManager.selection()
+                                showingExport = true
                             }
                         }
                         .animateOnAppearSubtle(delay: 0.08)
@@ -280,7 +281,7 @@ struct SettingsView: View {
                     HStack(spacing: Design.Spacing.s) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Design.Colors.accentSuccess)
-                        Text("ID скопирован")
+                        Text(L.idCopied)
                             .font(Design.Typography.subheadline)
                             .foregroundStyle(Design.Colors.textPrimary)
                     }
@@ -938,34 +939,19 @@ struct LanguageSelectionView: View {
 // destination — it already has add/edit flows.
 
 struct MyServicesSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
     var body: some View {
-        NavigationStack {
-            ProfileView()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(L.done) { dismiss() }
-                    }
-                }
-        }
+        // ProfileView brings its own NavigationStack — wrapping it in another
+        // one produced a doubled navigation bar. Sheet is drag-to-dismiss.
+        ProfileView()
     }
 }
 
 // MARK: - Work Schedule Sheet (placeholder; reuses ProfileView for now)
 
 struct WorkScheduleSheet: View {
-    @Environment(\.dismiss) private var dismiss
     let master: Master?
 
     var body: some View {
-        NavigationStack {
-            ProfileView()
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(L.done) { dismiss() }
-                    }
-                }
-        }
+        ProfileView()
     }
 }

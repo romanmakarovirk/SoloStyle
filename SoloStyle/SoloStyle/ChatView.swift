@@ -93,7 +93,7 @@ struct ChatView: View {
                 composer
             }
         }
-        .navigationTitle(conversation.otherDisplayName ?? "Чат")
+        .navigationTitle(conversation.otherDisplayName ?? L.chatFallbackTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -168,7 +168,7 @@ struct ChatView: View {
             }
 
             HStack(spacing: Design.Spacing.s) {
-                TextField("Сообщение", text: $draft, axis: .vertical)
+                TextField(L.messagePlaceholder, text: $draft, axis: .vertical)
                     .lineLimit(1...5)
                     .focused($isInputFocused)
                     .onChange(of: draft) { _, newValue in
@@ -307,6 +307,7 @@ private struct TypingIndicator: View {
                     .fill(Design.Colors.textTertiary)
                     .frame(width: 6, height: 6)
                     .opacity(phase == idx ? 1 : 0.3)
+                    .animation(.easeInOut(duration: 0.3), value: phase)
             }
         }
         .padding(.horizontal, Design.Spacing.s)
@@ -315,11 +316,12 @@ private struct TypingIndicator: View {
             RoundedRectangle(cornerRadius: Design.Radius.l)
                 .fill(Color(.tertiarySystemBackground))
         )
-        .onAppear {
-            withAnimation(.linear(duration: 0.6).repeatForever(autoreverses: false)) {
-                phase = 2
-            }
-            Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+        // .task auto-cancels when the view disappears — unlike the previous
+        // Timer.scheduledTimer, which kept firing forever (battery leak).
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                guard !Task.isCancelled else { break }
                 phase = (phase + 1) % 3
             }
         }

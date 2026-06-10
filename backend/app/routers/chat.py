@@ -67,6 +67,8 @@ class ConversationOut(BaseModel):
     id: str
     master_external_id: str
     client_external_id: str
+    master_display_name: Optional[str] = None
+    client_display_name: Optional[str] = None
     last_message_preview: Optional[str] = None
     last_message_at: Optional[str] = None
     unread_master: int = 0
@@ -93,17 +95,69 @@ class MessageOut(BaseModel):
 # ── DB helpers ──────────────────────────────────────────────────────
 
 
-def _conversation_row_to_out(row: dict) -> ConversationOut:
+def _conversation_row_to_out(row: dict, names: dict[str, str] | None = None) -> ConversationOut:
+    names = names or {}
     return ConversationOut(
         id=str(row["id"]),
         master_external_id=row["master_external_id"],
         client_external_id=row["client_external_id"],
+        master_display_name=names.get(row["master_external_id"]),
+        client_display_name=names.get(row["client_external_id"]),
         last_message_preview=row.get("last_message_preview"),
         last_message_at=row.get("last_message_at"),
         unread_master=row.get("unread_master") or 0,
         unread_client=row.get("unread_client") or 0,
         created_at=row["created_at"],
     )
+
+
+def _resolve_display_names(db: Client, external_ids: set[str]) -> dict[str, str]:
+    """
+    Map external_id (str(telegram_id) or apple_user_id) → "First Last".
+
+    Both lookups are batched (one query per id-kind), and failures fall back
+    to an empty map — the client renders the id prefix in that case, same as
+    before this feature existed.
+    """
+    if not external_ids:
+        return {}
+
+    telegram_ids = [int(x) for x in external_ids if x.isdigit()]
+    apple_ids = [x for x in external_ids if not x.isdigit()]
+
+    names: dict[str, str] = {}
+
+    def _full_name(row: dict) -> str:
+        first = (row.get("first_name") or "").strip()
+        last = (row.get("last_name") or "").strip()
+        return f"{first} {last}".strip() or first
+
+    try:
+        if telegram_ids:
+            rows = (
+                db.table("users")
+                .select("telegram_id,first_name,last_name")
+                .in_("telegram_id", telegram_ids)
+                .execute()
+            ).data or []
+            for r in rows:
+                if r.get("telegram_id") is not None and _full_name(r):
+                    names[str(r["telegram_id"])] = _full_name(r)
+
+        if apple_ids:
+            rows = (
+                db.table("users")
+                .select("apple_user_id,first_name,last_name")
+                .in_("apple_user_id", apple_ids)
+                .execute()
+            ).data or []
+            for r in rows:
+                if r.get("apple_user_id") and _full_name(r):
+                    names[r["apple_user_id"]] = _full_name(r)
+    except Exception:
+        logger.exception("[CHAT] display-name lookup failed; returning partial map")
+
+    return names
 
 
 def _message_row_to_out(row: dict) -> MessageOut:
@@ -178,7 +232,10 @@ def start_conversation(
     else:
         conv = _find_or_create_conversation(db, master_id=body.other_external_id, client_id=user_id)
 
-    return _conversation_row_to_out(conv)
+    names = _resolve_display_names(
+        db, {conv["master_external_id"], conv["client_external_id"]}
+    )
+    return _conversation_row_to_out(conv, names)
 
 
 @router.get("/conversations", response_model=list[ConversationOut])
@@ -202,7 +259,10 @@ def list_conversations(
 
     rows = master_side + client_side
     rows.sort(key=lambda r: r.get("last_message_at") or r["created_at"], reverse=True)
-    return [_conversation_row_to_out(r) for r in rows]
+
+    all_ids = {r["master_external_id"] for r in rows} | {r["client_external_id"] for r in rows}
+    names = _resolve_display_names(db, all_ids)
+    return [_conversation_row_to_out(r, names) for r in rows]
 
 
 @router.get(

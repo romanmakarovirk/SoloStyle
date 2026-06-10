@@ -147,7 +147,10 @@ struct AIAssistantView: View {
             .foregroundStyle(Design.Colors.accentPrimary)
             .frame(width: 64, height: 64)
             .soloGlass(tint: Color.blue.opacity(0.2), shape: .circle)
-            .symbolEffect(.breathe.pulse.byLayer, options: .repeating)
+            // Finite repeat: the AI tab stays mounted (opacity 0) even when
+            // hidden, so a .repeating effect would render at full frame rate
+            // forever and heat the device.
+            .symbolEffect(.breathe.pulse.byLayer, options: .repeat(3))
     }
 
     private var actionsGrid: some View {
@@ -503,6 +506,8 @@ struct MasterCardsView: View {
 struct MasterCard: View {
     let master: MasterResult
     @State private var showingBooking = false
+    @State private var chatConversation: MessengerConversation?
+    @State private var isStartingChat = false
 
     var body: some View {
         Button {
@@ -598,20 +603,45 @@ struct MasterCard: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                // Book button
-                HStack(spacing: Design.Spacing.xs) {
-                    Image(systemName: "calendar.badge.plus")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text(L.bookAppointment)
-                        .font(.system(size: 13, weight: .semibold))
+                // Action buttons: book + message
+                HStack(spacing: Design.Spacing.s) {
+                    // Book (primary)
+                    HStack(spacing: Design.Spacing.xs) {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(L.bookAppointment)
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Design.Spacing.s)
+                    .background(Capsule().fill(Design.Colors.accentPrimary))
+
+                    // Message (secondary) — real Button layered over the card
+                    Button {
+                        HapticManager.impact(.light)
+                        Task { await openChat() }
+                    } label: {
+                        HStack(spacing: Design.Spacing.xs) {
+                            if isStartingChat {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .tint(Design.Colors.accentPrimary)
+                            } else {
+                                Image(systemName: "message.fill")
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            Text(L.writeMessage)
+                                .font(.system(size: 13, weight: .semibold))
+                        }
+                        .foregroundStyle(Design.Colors.accentPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Design.Spacing.s)
+                        .background(Capsule().fill(Design.Colors.accentPrimary.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isStartingChat)
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Design.Spacing.s)
-                .background(
-                    Capsule()
-                        .fill(Design.Colors.accentPrimary)
-                )
                 .padding(.top, Design.Spacing.s)
             }
             .padding(Design.Spacing.m)
@@ -623,8 +653,33 @@ struct MasterCard: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        .sheet(item: $chatConversation) { conv in
+            NavigationStack {
+                ChatView(conversation: conv)
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
     }
 
+    /// Start (or resume) a conversation with this master.  The conversation is
+    /// keyed by the catalog master_id; the master sees it once an account with
+    /// that external id signs in.  The card already knows the display name, so
+    /// we pass it as a fallback for the local cache.
+    private func openChat() async {
+        isStartingChat = true
+        defer { isStartingChat = false }
+        let conv = await ChatService.shared.startConversation(
+            otherExternalId: master.masterId,
+            asRole: "client",
+            fallbackName: master.masterName
+        )
+        if let conv {
+            chatConversation = conv
+        } else {
+            HapticManager.notification(.error)
+        }
+    }
 }
 
 // MARK: - Book Master Sheet

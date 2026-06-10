@@ -149,6 +149,8 @@ nonisolated struct ServerConversation: Codable, Sendable {
     let id: String
     let masterExternalId: String
     let clientExternalId: String
+    let masterDisplayName: String?
+    let clientDisplayName: String?
     let lastMessagePreview: String?
     let lastMessageAt: String?
     let unreadMaster: Int
@@ -159,6 +161,8 @@ nonisolated struct ServerConversation: Codable, Sendable {
         case id
         case masterExternalId = "master_external_id"
         case clientExternalId = "client_external_id"
+        case masterDisplayName = "master_display_name"
+        case clientDisplayName = "client_display_name"
         case lastMessagePreview = "last_message_preview"
         case lastMessageAt = "last_message_at"
         case unreadMaster = "unread_master"

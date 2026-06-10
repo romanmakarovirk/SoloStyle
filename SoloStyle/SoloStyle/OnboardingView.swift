@@ -272,7 +272,7 @@ struct OnboardingView: View {
                         Image(systemName: "person.fill")
                             .font(.system(size: 36))
                             .foregroundStyle(Design.Colors.accentPrimary)
-                            .symbolEffect(.bounce, options: .repeating.speed(0.3), value: isAnimating)
+                            .symbolEffect(.bounce, options: .repeat(2), value: isAnimating)
                     }
                     .animateOnAppear(delay: 0.1)
 

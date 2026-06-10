@@ -168,10 +168,22 @@ final class ChatService {
                 conv.lastMessageAt = ChatDateFormatter.parse(sc.lastMessageAt)
                 conv.unreadMaster = sc.unreadMaster
                 conv.unreadClient = sc.unreadClient
+                applyDisplayName(from: sc, to: conv)
             }
             try context.save()
         } catch {
             print("[CHAT] syncConversations failed: \(error)")
+        }
+    }
+
+    /// Cache the OTHER party's display name on the local conversation row.
+    /// Falls back silently when the server has no name (e.g. catalog masters
+    /// that never signed in) — the UI then shows the id-prefix placeholder.
+    private func applyDisplayName(from sc: ServerConversation, to conv: MessengerConversation) {
+        guard let me = currentExternalId else { return }
+        let otherName = sc.masterExternalId == me ? sc.clientDisplayName : sc.masterDisplayName
+        if let otherName, !otherName.isEmpty {
+            conv.otherDisplayName = otherName
         }
     }
 
@@ -204,7 +216,15 @@ final class ChatService {
 
     /// Find or create a conversation with `otherExternalId`.  `asRole` is the
     /// caller's role in the new conversation (master or client).
-    func startConversation(otherExternalId: String, asRole: String) async -> MessengerConversation? {
+    ///
+    /// `fallbackName` covers parties the backend can't resolve (e.g. catalog
+    /// masters from AI search who have no `users` row yet) — the caller knows
+    /// the name from its own context and passes it for the local cache.
+    func startConversation(
+        otherExternalId: String,
+        asRole: String,
+        fallbackName: String? = nil
+    ) async -> MessengerConversation? {
         guard let context = modelContext else { return nil }
 
         struct Body: Codable { let other_external_id: String; let as_role: String }
@@ -217,6 +237,11 @@ final class ChatService {
             guard let convUUID = UUID(uuidString: sc.id) else { return nil }
 
             if let existing = try fetchConversation(id: convUUID, context: context) {
+                applyDisplayName(from: sc, to: existing)
+                if existing.otherDisplayName == nil, let fallbackName {
+                    existing.otherDisplayName = fallbackName
+                }
+                try context.save()
                 return existing
             }
 
@@ -227,6 +252,10 @@ final class ChatService {
                 createdAt: ChatDateFormatter.parse(sc.createdAt) ?? Date()
             )
             context.insert(conv)
+            applyDisplayName(from: sc, to: conv)
+            if conv.otherDisplayName == nil, let fallbackName {
+                conv.otherDisplayName = fallbackName
+            }
             try context.save()
             return conv
         } catch {

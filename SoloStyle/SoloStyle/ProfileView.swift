@@ -1047,11 +1047,16 @@ struct EditProfileView: View {
     /// Load picked PhotosPickerItem into Data and stash in @State so the avatar
     /// preview updates instantly. The actual persistence happens in
     /// `saveProfile()` once the user taps Save.
+    ///
+    /// The raw camera photo can be 12 MP / 5+ MB; the avatar renders in a
+    /// 48–110 pt circle, so we downscale to 512 px and re-encode as JPEG —
+    /// ~50–100 KB instead of megabytes, faster lists, less memory.
     private func loadPickedImage(_ item: PhotosPickerItem?) async {
         guard let item else { return }
-        if let data = try? await item.loadTransferable(type: Data.self) {
+        if let data = try? await item.loadTransferable(type: Data.self),
+           let downscaled = Self.downscaledAvatarData(from: data) {
             await MainActor.run {
-                pickedImageData = data
+                pickedImageData = downscaled
                 HapticManager.notification(.success)
             }
         } else {
@@ -1059,6 +1064,28 @@ struct EditProfileView: View {
                 HapticManager.notification(.error)
             }
         }
+    }
+
+    private static func downscaledAvatarData(from data: Data, maxDimension: CGFloat = 512) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+
+        let largest = max(image.size.width, image.size.height)
+        guard largest > maxDimension else {
+            // Already small enough — just normalize to JPEG
+            return image.jpegData(compressionQuality: 0.8)
+        }
+
+        let scale = maxDimension / largest
+        let newSize = CGSize(width: image.size.width * scale,
+                             height: image.size.height * scale)
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1  // pixel-exact, ignore device scale
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        return resized.jpegData(compressionQuality: 0.8)
     }
 }
 

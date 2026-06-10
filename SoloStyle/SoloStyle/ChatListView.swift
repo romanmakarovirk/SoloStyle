@@ -46,6 +46,10 @@ struct ChatListView: View {
         allConversations.filter { $0.archivedAt == nil }
     }
 
+    private var archivedConversations: [MessengerConversation] {
+        allConversations.filter { $0.archivedAt != nil }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -98,29 +102,85 @@ struct ChatListView: View {
     }
 
     // MARK: - List
+    //
+    // Must be a real `List`: .swipeActions is a List-row-only modifier and
+    // silently does nothing inside ScrollView/LazyVStack.
 
     @ViewBuilder
     private var listContent: some View {
-        ScrollView {
-            LazyVStack(spacing: Design.Spacing.xs) {
-                if !pinnedConversations.isEmpty {
-                    sectionHeader(L.pinned, icon: "pin.fill")
+        List {
+            if !pinnedConversations.isEmpty {
+                Section {
                     ForEach(pinnedConversations) { conv in
                         conversationLink(conv)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(
+                                top: 4, leading: Design.Spacing.m,
+                                bottom: 4, trailing: Design.Spacing.m
+                            ))
                     }
-                    if !regularConversations.isEmpty {
-                        sectionHeader(L.allChats, icon: "bubble.left.and.bubble.right")
-                            .padding(.top, Design.Spacing.s)
-                    }
-                }
-                ForEach(regularConversations) { conv in
-                    conversationLink(conv)
+                } header: {
+                    sectionHeader(L.pinned, icon: "pin.fill")
                 }
             }
-            .padding(.horizontal, Design.Spacing.m)
-            .padding(.top, Design.Spacing.s)
-            .padding(.bottom, 120)
+
+            Section {
+                ForEach(regularConversations) { conv in
+                    conversationLink(conv)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(
+                            top: 4, leading: Design.Spacing.m,
+                            bottom: 4, trailing: Design.Spacing.m
+                        ))
+                }
+            } header: {
+                if !pinnedConversations.isEmpty {
+                    sectionHeader(L.allChats, icon: "bubble.left.and.bubble.right")
+                }
+            }
+
+            // Archive entry — only when there's something archived
+            if !archivedConversations.isEmpty {
+                NavigationLink {
+                    ArchivedChatsView()
+                } label: {
+                    HStack(spacing: Design.Spacing.s) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(Design.Colors.textSecondary)
+                            .frame(width: 40, height: 40)
+                            .background(Circle().fill(Design.Colors.backgroundSecondary))
+
+                        Text(L.archivedChats)
+                            .font(Design.Typography.subheadline)
+                            .foregroundStyle(Design.Colors.textSecondary)
+
+                        Spacer()
+
+                        Text("\(archivedConversations.count)")
+                            .font(Design.Typography.caption1)
+                            .foregroundStyle(Design.Colors.textTertiary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(
+                    top: 4, leading: Design.Spacing.m,
+                    bottom: 4, trailing: Design.Spacing.m
+                ))
+            }
+
+            // Spacer row so the floating tab bar doesn't cover the last chat
+            Color.clear
+                .frame(height: 100)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private func sectionHeader(_ title: String, icon: String) -> some View {
@@ -303,6 +363,74 @@ private struct ConversationRow: View {
             return formatter.string(from: date).capitalized
         }
         return date.formatted(date: .numeric, time: .omitted)
+    }
+}
+
+// MARK: - Archived Chats
+
+struct ArchivedChatsView: View {
+    @Environment(\.modelContext) private var modelContext
+
+    @Query(sort: [SortDescriptor(\MessengerConversation.lastMessageAt, order: .reverse)])
+    private var allConversations: [MessengerConversation]
+
+    private var archived: [MessengerConversation] {
+        allConversations.filter { $0.archivedAt != nil }
+    }
+
+    private var myExternalId: String {
+        AuthManager.shared.currentUserExternalId ?? ""
+    }
+
+    var body: some View {
+        ZStack {
+            Design.Colors.backgroundPrimary.ignoresSafeArea()
+
+            if archived.isEmpty {
+                EmptyStateView(
+                    icon: "archivebox",
+                    title: L.archiveEmptyTitle,
+                    subtitle: L.archiveEmptySubtitle
+                )
+            } else {
+                List {
+                    ForEach(archived) { conv in
+                        NavigationLink {
+                            ChatView(conversation: conv)
+                        } label: {
+                            ConversationRow(conversation: conv, myExternalId: myExternalId)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(
+                            top: 4, leading: Design.Spacing.m,
+                            bottom: 4, trailing: Design.Spacing.m
+                        ))
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button {
+                                unarchive(conv)
+                            } label: {
+                                Label(L.unarchive, systemImage: "tray.and.arrow.up.fill")
+                            }
+                            .tint(.blue)
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .navigationTitle(L.archivedChats)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func unarchive(_ conv: MessengerConversation) {
+        HapticManager.impact(.light)
+        withAnimation(Design.Animation.smooth) {
+            conv.archivedAt = nil
+        }
+        try? modelContext.save()
     }
 }
 
